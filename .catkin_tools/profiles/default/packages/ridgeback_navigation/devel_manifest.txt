@@ -1,0 +1,5 @@
+ridgeback/ridgeback_navigation
+/home/praj/capstone_final/ridgeback_ws/devel/.private/ridgeback_navigation/cmake.lock /home/praj/capstone_final/ridgeback_ws/devel/./cmake.lock
+/home/praj/capstone_final/ridgeback_ws/devel/.private/ridgeback_navigation/share/ridgeback_navigation/cmake/ridgeback_navigationConfig.cmake /home/praj/capstone_final/ridgeback_ws/devel/share/ridgeback_navigation/cmake/ridgeback_navigationConfig.cmake
+/home/praj/capstone_final/ridgeback_ws/devel/.private/ridgeback_navigation/share/ridgeback_navigation/cmake/ridgeback_navigationConfig-version.cmake /home/praj/capstone_final/ridgeback_ws/devel/share/ridgeback_navigation/cmake/ridgeback_navigationConfig-version.cmake
+/home/praj/capstone_final/ridgeback_ws/devel/.private/ridgeback_navigation/lib/pkgconfig/ridgeback_navigation.pc /home/praj/capstone_final/ridgeback_ws/devel/lib/pkgconfig/ridgeback_navigation.pc

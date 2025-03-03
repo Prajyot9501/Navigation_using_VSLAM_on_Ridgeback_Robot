@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>orb_slam3_ros</name>
+  <version>0.0.1</version>
+  <description>ROS wrapper for ORB-SLAM3</description>
+
+  <maintainer email="your_email@example.com">Your Name</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>image_transport</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>image_transport</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+
+</package>

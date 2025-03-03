@@ -1,0 +1,5 @@
+ridgeback/ridgeback_description
+/home/praj/capstone_final/ridgeback_ws/devel/.private/ridgeback_description/cmake.lock /home/praj/capstone_final/ridgeback_ws/devel/./cmake.lock
+/home/praj/capstone_final/ridgeback_ws/devel/.private/ridgeback_description/share/ridgeback_description/cmake/ridgeback_descriptionConfig.cmake /home/praj/capstone_final/ridgeback_ws/devel/share/ridgeback_description/cmake/ridgeback_descriptionConfig.cmake
+/home/praj/capstone_final/ridgeback_ws/devel/.private/ridgeback_description/share/ridgeback_description/cmake/ridgeback_descriptionConfig-version.cmake /home/praj/capstone_final/ridgeback_ws/devel/share/ridgeback_description/cmake/ridgeback_descriptionConfig-version.cmake
+/home/praj/capstone_final/ridgeback_ws/devel/.private/ridgeback_description/lib/pkgconfig/ridgeback_description.pc /home/praj/capstone_final/ridgeback_ws/devel/lib/pkgconfig/ridgeback_description.pc

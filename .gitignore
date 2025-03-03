@@ -1,0 +1,12 @@
+# Ignore build and install directories
+build_isolated/
+devel_isolated/
+install_isolated/
+logs/
+
+# ROS-specific ignores
+*.log
+*.bag
+*.swp
+*.pyc
+*.pyo
