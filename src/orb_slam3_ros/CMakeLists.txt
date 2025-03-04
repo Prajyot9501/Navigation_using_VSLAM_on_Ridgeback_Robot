@@ -59,8 +59,17 @@ target_link_libraries(orb_slam3_ros_rgbd
   ${LIBS}
 )
 
+# Build the RGB-D version with YOLOv8 integration
+add_executable(orb_slam3_ros_yolo_rgbd
+  src/orb_slam3_ros_yolo_rgbd.cc
+)
+
+target_link_libraries(orb_slam3_ros_yolo_rgbd
+  ${LIBS}
+)
+
 # Install targets
-install(TARGETS orb_slam3_ros_rgbd
+install(TARGETS orb_slam3_ros_rgbd orb_slam3_ros_yolo_rgbd
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
