@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Define paths -->
+  <arg name="voc_file" default="$(find orb_slam3_ros)/vocabulary/ORBvoc.txt"/>
+  <arg name="settings_file" default="$(find orb_slam3_ros)/config/D455/D455.yaml"/>
+  <arg name="launch_rviz" default="true"/>
+  
+  <!-- Define camera topics - UPDATED for your bag file -->
+  <arg name="rgb_topic" default="/device_0/sensor_1/Color_0/image/data"/>
+  <arg name="depth_topic" default="/device_0/sensor_0/Depth_0/image/data"/>
+  
+  <!-- Include the original dynamic SLAM launch file -->
+  <include file="$(find orb_slam3_ros)/launch/dynamic_slam_d455.launch">
+    <arg name="launch_rviz" value="false"/>
+  </include>
+
+  <!-- Load the Ridgeback URDF description -->
+  <param name="robot_description" command="$(find xacro)/xacro $(find ridgeback_description)/urdf/ridgeback.urdf.xacro" />
+  
+  <!-- Start robot state publisher -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  
+  <!-- Start joint state publisher -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  
+  <!-- Publish static transform from world to Ridgeback base -->
+  <node pkg="tf" type="static_transform_publisher" name="world_to_ridgeback_tf" 
+        args="0 0 0 0 0 0 world base_link 100" />
+  
+  <!-- Publish static transform from Ridgeback base to camera -->
+  <node pkg="tf" type="static_transform_publisher" name="ridgeback_to_camera_tf" 
+        args="0.3 0 0.4 0 0 0 base_link camera_link 100" />
+
+  <!-- Update the RViz configuration to display the robot model -->
+  <node if="$(arg launch_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find orb_slam3_ros)/rviz/ridgeback_slam.rviz" />
+</launch>

@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Control whether to launch RViz -->
+  <arg name="launch_rviz" default="true"/>
+  
+  <!-- Load the map from SLAM -->
+  <arg name="map_topic" default="/orb_slam3/occupancy_grid"/>
+  
+  <!-- Map server using the SLAM-generated map -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find orb_slam3_ros)/maps/slam_map.yaml">
+    <remap from="map" to="/map"/>
+  </node>
+
+  <!-- Run the map to odom publisher -->
+  <node pkg="tf" type="static_transform_publisher" name="map_to_odom" 
+        args="0 0 0 0 0 0 map odom 100"/>
+        
+  <!-- Run the odom to base_link publisher (normally from robot odometry) -->
+  <node pkg="tf" type="static_transform_publisher" name="odom_to_base_link" 
+        args="0 0 0 0 0 0 odom base_link 100"/>
+
+  <!-- Ridgeback move_base -->
+  <include file="$(find ridgeback_navigation)/launch/include/move_base.launch">
+    <arg name="no_static_map" value="false"/>
+  </include>
+
+  <!-- AMCL for localization -->
+  <include file="$(find ridgeback_navigation)/launch/include/amcl.launch">
+    <arg name="scan_topic" value="/scan"/>
+  </include>
+
+  <!-- Voice command recognition node (placeholder) -->
+  <node name="voice_recognition" pkg="orb_slam3_ros" type="voice_recognition.py" output="screen"/>
+
+  <!-- Object tracker -->
+  <node name="object_tracker" pkg="orb_slam3_ros" type="object_tracker.py" output="screen"/>
+
+  <!-- Pointcloud to map converter -->
+  <node name="pointcloud_to_map" pkg="orb_slam3_ros" type="pointcloud_to_map.py" output="screen"/>
+
+  <!-- Save map service - allows saving the map when SLAM is complete -->
+  <node name="map_saver" pkg="map_server" type="map_saver" args="-f $(find orb_slam3_ros)/maps/slam_map" />
+  
+  <!-- Only launch RViz if parameter is true -->
+  <node if="$(arg launch_rviz)" name="rviz_navigation" pkg="rviz" type="rviz" 
+        args="-d $(find orb_slam3_ros)/rviz/ridgeback_slam.rviz" />
+</launch>

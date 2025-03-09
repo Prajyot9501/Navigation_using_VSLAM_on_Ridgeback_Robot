@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Choose SLAM mode -->
+  <arg name="slam_mode" default="true" doc="True for SLAM, False for navigation with saved map"/>
+  <arg name="rviz_config" default="$(find orb_slam3_ros)/rviz/ridgeback_slam.rviz"/>
+  
+  <!-- Define unique node names -->
+  <arg name="yolo_node" value="$(anon yolov8_detector)"/>
+  
+  <!-- Update the original launch files to use these unique names -->
+  <param name="/yolo_node_name" value="$(arg yolo_node)"/>
+  
+  <!-- Include the SLAM launch file with RViz disabled -->
+  <include file="$(find orb_slam3_ros)/launch/dynamic_slam_d455.launch">
+    <arg name="launch_rviz" value="false"/>
+  </include>
+  
+  <!-- Include the Ridgeback SLAM if in SLAM mode, but don't launch its RViz -->
+  <group if="$(arg slam_mode)">
+    <include file="$(find orb_slam3_ros)/launch/dynamic_slam_ridgeback.launch">
+      <arg name="launch_rviz" value="false"/>
+    </include>
+  </group>
+  
+  <!-- Include the navigation stack without RViz -->
+  <include file="$(find orb_slam3_ros)/launch/ridgeback_navigation.launch">
+    <arg name="launch_rviz" value="false"/>
+  </include>
+  
+  <!-- Launch only one RViz instance -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rviz_config)" output="screen"/>
+</launch>
