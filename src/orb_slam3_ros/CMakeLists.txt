@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(OpenCV 4.4 REQUIRED)
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
+find_package(PCL REQUIRED COMPONENTS common io)
 
 # Using relative path to ORB_SLAM3
 set(ORB_SLAM3_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../ORB_SLAM3)
@@ -33,6 +34,7 @@ include_directories(
   ${ORB_SLAM3_DIR}/Thirdparty/g2o        # g2o
   ${EIGEN3_INCLUDE_DIR}
   ${Pangolin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS} 
 )
 
 set(LIBS 
@@ -41,6 +43,7 @@ set(LIBS
   ${EIGEN3_LIBS}
   ${Pangolin_LIBRARIES}
   ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
   -lboost_serialization
   -lcrypto
 )
@@ -66,6 +69,7 @@ add_executable(orb_slam3_ros_yolo_rgbd
 
 target_link_libraries(orb_slam3_ros_yolo_rgbd
   ${LIBS}
+  ${PCL_LIBRARIES}
 )
 
 # Install targets
