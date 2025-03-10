@@ -7,11 +7,14 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   image_transport
   cv_bridge
+  pcl_ros
+  pcl_conversions
 )
 
 find_package(OpenCV 4.4 REQUIRED)
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
+find_package(PCL REQUIRED)
 
 # Using relative path to ORB_SLAM3
 set(ORB_SLAM3_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../ORB_SLAM3)
@@ -33,6 +36,7 @@ include_directories(
   ${ORB_SLAM3_DIR}/Thirdparty/g2o        # g2o
   ${EIGEN3_INCLUDE_DIR}
   ${Pangolin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 set(LIBS 
@@ -41,12 +45,13 @@ set(LIBS
   ${EIGEN3_LIBS}
   ${Pangolin_LIBRARIES}
   ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
   -lboost_serialization
   -lcrypto
 )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp tf sensor_msgs image_transport cv_bridge
+  CATKIN_DEPENDS roscpp tf sensor_msgs image_transport cv_bridge pcl_ros pcl_conversions
   LIBRARIES orb_slam3_ros
 )
 
@@ -68,8 +73,18 @@ target_link_libraries(orb_slam3_ros_yolo_rgbd
   ${LIBS}
 )
 
+# Build the separate pointcloud publisher
+add_executable(slam_pointcloud_publisher
+  src/slam_pointcloud_publisher.cpp
+)
+
+target_link_libraries(slam_pointcloud_publisher
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+
 # Install targets
-install(TARGETS orb_slam3_ros_rgbd orb_slam3_ros_yolo_rgbd
+install(TARGETS orb_slam3_ros_rgbd orb_slam3_ros_yolo_rgbd slam_pointcloud_publisher
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -87,4 +102,10 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config/
 # Install launch files
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
+
+# Install RViz files
+install(DIRECTORY rviz/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/rviz
+  FILES_MATCHING PATTERN "*"
 )
