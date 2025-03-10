@@ -36,5 +36,5 @@
   </node>
   
   <!-- Visualization -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find orb_slam3_ros)/rviz/slam_pointcloud.rviz"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find yolov8_ros)/rviz/dynamic_slam.rviz"/>
 </launch>
