@@ -72,6 +72,12 @@ target_link_libraries(orb_slam3_ros_yolo_rgbd
   ${PCL_LIBRARIES}
 )
 
+# Add Python scripts installation
+catkin_install_python(PROGRAMS
+  scripts/test_pointcloud_publisher.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 # Install targets
 install(TARGETS orb_slam3_ros_rgbd orb_slam3_ros_yolo_rgbd
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -91,4 +97,11 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config/
 # Install launch files
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
+
+# Install scripts
+install(PROGRAMS
+  scripts/setup_paths.sh
+  scripts/verify_library.sh
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

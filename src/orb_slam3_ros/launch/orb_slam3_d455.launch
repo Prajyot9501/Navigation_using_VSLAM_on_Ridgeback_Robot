@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Define paths with support for custom locations -->
+  <arg name="orb_slam3_lib_path" default="$(env HOME)/capstone_final/ridgeback_ws/src/ORB_SLAM3/lib"/>
+  <arg name="voc_file" default="$(find orb_slam3_ros)/vocabulary/ORBvoc.txt"/>
+  <arg name="settings_file" default="$(find orb_slam3_ros)/config/D455/D455.yaml"/>
+  
+  <!-- Define camera topics -->
+  <arg name="rgb_topic" default="/device_0/sensor_1/Color_0/image/data"/>
+  <arg name="depth_topic" default="/device_0/sensor_0/Depth_0/image/data"/>
+  
+  <!-- TF Transforms for visualization -->
+  <node pkg="tf" type="static_transform_publisher" name="world_to_map_tf" 
+        args="0 0 0 0 0 0 world map 100" />
+        
+  <node pkg="tf" type="static_transform_publisher" name="map_to_odom_tf" 
+        args="0 0 0 0 0 0 map odom 100" />
+        
+  <node pkg="tf" type="static_transform_publisher" name="odom_to_base_link_tf" 
+        args="0 0 0 0 0 0 odom base_link 100" />
+  
+  <!-- Before launching the node, verify the ORB_SLAM3 library exists -->
+  <arg name="lib_check" value="test -f $(arg orb_slam3_lib_path)/libORB_SLAM3.so"/>
+  <node name="verify_libs" pkg="orb_slam3_ros" type="verify_library.sh" args="$(arg orb_slam3_lib_path)" output="screen"/>
+  
+  <!-- ORB-SLAM3 RGBD Node with explicit environment setup -->
+  <node name="orb_slam3_yolo_rgbd" pkg="orb_slam3_ros" type="orb_slam3_ros_yolo_rgbd" output="screen" 
+        args="$(arg voc_file) $(arg settings_file) 1"
+        launch-prefix="bash -c 'source $(find orb_slam3_ros)/scripts/setup_paths.sh $(arg orb_slam3_lib_path) &amp;&amp; exec'">
+    
+    <!-- Camera topics -->
+    <remap from="/camera/rgb/image_raw" to="$(arg rgb_topic)" />
+    <remap from="/camera/depth_registered/image_raw" to="$(arg depth_topic)" />
+  </node>
+  
+  <!-- Start RViz with pointcloud configuration -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find orb_slam3_ros)/rviz/pointcloud_test.rviz" output="screen"/>
+</launch>
