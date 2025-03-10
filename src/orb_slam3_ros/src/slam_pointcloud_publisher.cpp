@@ -4,6 +4,7 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <eigen3/Eigen/Geometry>
 
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
 
@@ -28,10 +29,22 @@ public:
         // Publisher
         cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/orb_slam3/map_points", 1);
         
+        // Create transformation matrix for coordinate conversion
+        // This transforms from ORB-SLAM3 coordinate system to ROS standard
+        // ORB-SLAM3: Z forward, X right, Y up
+        // ROS standard: X forward, Y left, Z up
+        transform_matrix_.setIdentity();
+        Eigen::Matrix3d rot;
+        // X = Z, Y = -X, Z = Y (from ORB-SLAM3 to ROS standard)
+        rot << 0, 0, 1,
+               -1, 0, 0,
+               0, 1, 0;
+        transform_matrix_.block<3,3>(0,0) = rot;
+        
         // Timer
         timer_ = nh_.createTimer(ros::Duration(1.0/update_rate_), &SlamPointcloudPublisher::timerCallback, this);
         
-        ROS_INFO("Slam Pointcloud Publisher initialized");
+        ROS_INFO("Slam Pointcloud Publisher initialized with coordinate frame correction");
     }
 
 private:
@@ -46,6 +59,17 @@ private:
     double radius_;
     
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_;
+    Eigen::Matrix4d transform_matrix_;
+    
+    // Transform a point from ORB-SLAM3 coordinates to ROS standard coordinates
+    void transformPoint(double& x, double& y, double& z)
+    {
+        Eigen::Vector4d point_orb(x, y, z, 1.0);
+        Eigen::Vector4d point_ros = transform_matrix_ * point_orb;
+        x = point_ros(0);
+        y = point_ros(1);
+        z = point_ros(2);
+    }
     
     void timerCallback(const ros::TimerEvent& event)
     {
@@ -60,6 +84,10 @@ private:
             double x = transform.getOrigin().x();
             double y = transform.getOrigin().y();
             double z = transform.getOrigin().z();
+            
+            // Apply coordinate frame correction
+            double orig_x = x, orig_y = y, orig_z = z;
+            transformPoint(x, y, z);
             
             // Add camera position to cloud
             pcl::PointXYZRGB camera_point;
@@ -92,10 +120,18 @@ private:
                     double phi = M_PI * (double)rand() / RAND_MAX;
                     double radius = radius_ * (double)rand() / RAND_MAX;
                     
+                    // Generate in original coordinate system
+                    double px = orig_x + radius * sin(phi) * cos(theta);
+                    double py = orig_y + radius * sin(phi) * sin(theta);
+                    double pz = orig_z + radius * cos(phi);
+                    
+                    // Transform to ROS coordinate system
+                    transformPoint(px, py, pz);
+                    
                     pcl::PointXYZRGB point;
-                    point.x = x + radius * sin(phi) * cos(theta);
-                    point.y = y + radius * sin(phi) * sin(theta);
-                    point.z = z + radius * cos(phi);
+                    point.x = px;
+                    point.y = py;
+                    point.z = pz;
                     
                     // Set color based on position
                     point.r = 128 + 127 * sin(theta);
