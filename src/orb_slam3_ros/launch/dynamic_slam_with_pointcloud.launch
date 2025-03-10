@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Define paths -->
+  <arg name="voc_file" default="$(find orb_slam3_ros)/vocabulary/ORBvoc.txt"/>
+  <arg name="settings_file" default="$(find orb_slam3_ros)/config/D455/D455.yaml"/>
+  <arg name="yolo_model" default="yolov8n-seg.pt"/>
+  <arg name="confidence_threshold" default="0.5"/>
+  
+  <!-- Define camera topics - UPDATED for your bag file -->
+  <arg name="rgb_topic" default="/device_0/sensor_1/Color_0/image/data"/>
+  <arg name="depth_topic" default="/device_0/sensor_0/Depth_0/image/data"/>
+  
+  <!-- YOLOv8 Dynamic Object Detection Node -->
+  <node name="yolov8_detector" pkg="yolov8_ros" type="yolov8_detector_node.py" output="screen">
+    <param name="model_path" value="$(arg yolo_model)"/>
+    <param name="confidence_threshold" value="$(arg confidence_threshold)"/>
+    <remap from="/camera/rgb/image_raw" to="$(arg rgb_topic)"/>
+  </node>
+  
+  <!-- ORB-SLAM3 RGBD Node with Dynamic Object Filtering (ORIGINAL CODE) -->
+  <node name="orb_slam3_yolo_rgbd" pkg="orb_slam3_ros" type="orb_slam3_ros_yolo_rgbd" output="screen" 
+        args="$(arg voc_file) $(arg settings_file) 1"
+        launch-prefix="env LD_LIBRARY_PATH=$(env LD_LIBRARY_PATH):/home/praj/capstone_final/ridgeback_ws/src/ORB_SLAM3/lib">
+    
+    <!-- Camera topics - update these to match your bag -->
+    <remap from="/camera/rgb/image_raw" to="$(arg rgb_topic)" />
+    <remap from="/camera/depth_registered/image_raw" to="$(arg depth_topic)" />
+  </node>
+  
+  <!-- Pointcloud Publisher Node - Separate from ORB-SLAM3 -->
+  <node name="slam_pointcloud_publisher" pkg="orb_slam3_ros" type="slam_pointcloud_publisher" output="screen">
+    <param name="frame_id" value="world"/>
+    <param name="num_points" value="10000"/>
+    <param name="update_rate" value="5.0"/>
+    <param name="pointcloud_radius" value="1.0"/>
+  </node>
+  
+  <!-- Visualization -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find yolov8_ros)/rviz/dynamic_slam.rviz"/>
+</launch>
