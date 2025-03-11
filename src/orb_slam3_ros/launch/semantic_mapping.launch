@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<launch>
+
+  <param name="/use_sim_time" value="true"/>
+  <!-- Define paths -->
+  <arg name="voc_file" default="$(find orb_slam3_ros)/vocabulary/ORBvoc.txt"/>
+  <arg name="settings_file" default="$(find orb_slam3_ros)/config/D455/D455.yaml"/>
+  <arg name="yolo_model" default="yolov8n-seg.pt"/>
+  <arg name="confidence_threshold" default="0.5"/>
+  
+  <!-- Define camera topics -->
+  <arg name="rgb_topic" default="/device_0/sensor_1/Color_0/image/data"/>
+  <arg name="depth_topic" default="/device_0/sensor_0/Depth_0/image/data"/>
+  
+  <!-- Map generation parameters -->
+  <arg name="occupancy_grid_resolution" default="0.05"/>  <!-- 5cm resolution -->
+  <arg name="octomap_resolution" default="0.1"/>         <!-- 10cm resolution -->
+  <arg name="z_min" default="-0.1"/>                     <!-- Floor threshold -->
+  <arg name="z_max" default="2.0"/>                      <!-- Maximum height -->
+  
+  <!-- YOLOv8 Dynamic Object Detection Node -->
+  <node name="yolov8_detector" pkg="yolov8_ros" type="yolov8_detector_node.py" output="screen">
+    <param name="model_path" value="$(arg yolo_model)"/>
+    <param name="confidence_threshold" value="$(arg confidence_threshold)"/>
+    <remap from="/camera/rgb/image_raw" to="$(arg rgb_topic)"/>
+  </node>
+  
+  <!-- ORB-SLAM3 RGBD Node with Dynamic Object Filtering -->
+  <node name="orb_slam3_yolo_rgbd" pkg="orb_slam3_ros" type="orb_slam3_ros_yolo_rgbd" output="screen" 
+        args="$(arg voc_file) $(arg settings_file) 1"
+        launch-prefix="env LD_LIBRARY_PATH=$(env LD_LIBRARY_PATH):/home/praj/capstone_final/ridgeback_ws/src/ORB_SLAM3/lib">
+    
+    <!-- Camera topics -->
+    <remap from="/camera/rgb/image_raw" to="$(arg rgb_topic)" />
+    <remap from="/camera/depth_registered/image_raw" to="$(arg depth_topic)" />
+  </node>
+  
+  <!-- Pointcloud Publisher Node -->
+  <node name="slam_pointcloud_publisher" pkg="orb_slam3_ros" type="slam_pointcloud_publisher" output="screen">
+    <param name="frame_id" value="world"/>
+    <param name="num_points" value="50000"/>   <!-- Increased for better map quality -->
+    <param name="update_rate" value="2.0"/>     <!-- Slower updates for more stability -->
+    <param name="pointcloud_radius" value="0.5"/> <!-- Smaller radius for more precise points -->
+  </node>
+  
+  <!-- Pointcloud to Map Converter Node -->
+  <node name="pointcloud_to_map" pkg="orb_slam3_ros" type="pointcloud_to_map" output="screen">
+    <param name="frame_id" value="world"/>
+    <param name="occupancy_grid_resolution" value="$(arg occupancy_grid_resolution)"/>
+    <param name="octomap_resolution" value="$(arg octomap_resolution)"/>
+    <param name="z_min" value="$(arg z_min)"/>
+    <param name="z_max" value="$(arg z_max)"/>
+  </node>
+  
+  <!-- RViz for visualization -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find orb_slam3_ros)/rviz/semantic_mapping.rviz"/>
+</launch>

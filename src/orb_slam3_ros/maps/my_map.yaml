@@ -1,0 +1,7 @@
+image: /home/praj/capstone_final/ridgeback_ws/src/orb_slam3_ros/maps/my_map.pgm
+resolution: 0.050000
+origin: [-1.178998, -1.148577, 0.000000]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196
+

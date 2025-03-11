@@ -9,12 +9,19 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   pcl_ros
   pcl_conversions
+  nav_msgs
+  octomap_ros
+  octomap_msgs
+  octomap_server
+  grid_map_ros
+  grid_map_msgs
 )
 
 find_package(OpenCV 4.4 REQUIRED)
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
 find_package(PCL REQUIRED)
+find_package(octomap REQUIRED)
 
 # Using relative path to ORB_SLAM3
 set(ORB_SLAM3_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../ORB_SLAM3)
@@ -37,6 +44,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
   ${Pangolin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
+  ${OCTOMAP_INCLUDE_DIRS}
 )
 
 set(LIBS 
@@ -46,12 +54,13 @@ set(LIBS
   ${Pangolin_LIBRARIES}
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
+  ${OCTOMAP_LIBRARIES}
   -lboost_serialization
   -lcrypto
 )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp tf sensor_msgs image_transport cv_bridge pcl_ros pcl_conversions
+  CATKIN_DEPENDS roscpp tf sensor_msgs image_transport cv_bridge pcl_ros pcl_conversions nav_msgs octomap_ros octomap_msgs octomap_server grid_map_ros grid_map_msgs
   LIBRARIES orb_slam3_ros
 )
 
@@ -83,8 +92,19 @@ target_link_libraries(slam_pointcloud_publisher
   ${PCL_LIBRARIES}
 )
 
+# Build the new pointcloud to map converter
+add_executable(pointcloud_to_map
+  src/pointcloud_to_map.cpp
+)
+
+target_link_libraries(pointcloud_to_map
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${OCTOMAP_LIBRARIES}
+)
+
 # Install targets
-install(TARGETS orb_slam3_ros_rgbd orb_slam3_ros_yolo_rgbd slam_pointcloud_publisher
+install(TARGETS orb_slam3_ros_rgbd orb_slam3_ros_yolo_rgbd slam_pointcloud_publisher pointcloud_to_map
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
