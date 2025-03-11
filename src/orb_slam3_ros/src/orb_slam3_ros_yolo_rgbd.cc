@@ -146,13 +146,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB, const sens
     // Create modified ORB-SLAM3 input
     cv::Mat rgbImageWithMask = cv_ptrRGB->image.clone();
     
-    // This is a modification to pass the mask to ORB-SLAM3
-    // Since we don't modify the ORB-SLAM3 core, we'll need to:
-    // 1. Mark dynamic regions to avoid feature extraction there
-    // 2. Create an obvious visual cue for ORB-SLAM3 to ignore these areas
-    
     // Apply mask to image (optional - helps with visualization)
-    // Real dynamic point filtering will be done by modifying ORB-SLAM3 feature extraction
     if (!dynamicMask.empty() && dynamicMask.size() == rgbImageWithMask.size())
     {
         // Dark red overlay on dynamic regions
@@ -165,19 +159,30 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB, const sens
     // Check if tracking was successful (valid pose)
     if(!Tcw_sophus.matrix().isZero(0))
     {
-        // Convert Sophus::SE3f to tf transform
-        // Get rotation matrix and translation vector from Sophus::SE3f
-        Eigen::Matrix3f R = Tcw_sophus.rotationMatrix().inverse();
-        Eigen::Vector3f t = -(R * Tcw_sophus.translation());
+        // Get rotation matrix and translation vector from camera-to-world transform
+        Eigen::Matrix3f Rwc = Tcw_sophus.rotationMatrix().inverse();
+        Eigen::Vector3f twc = -(Rwc * Tcw_sophus.translation());
+        
+        // Define the coordinate transformation from ORB-SLAM3 to ROS standard
+        // ORB-SLAM3: Z forward, X right, Y down
+        // ROS: X forward, Y left, Z up
+        Eigen::Matrix3f R_coord_transform;
+        R_coord_transform << 0, 0, 1,
+                            -1, 0, 0,
+                             0, -1, 0;
+        
+        // Apply the coordinate transformation
+        Eigen::Matrix3f R_final = R_coord_transform * Rwc;
+        Eigen::Vector3f t_final = R_coord_transform * twc;
         
         // Convert to tf format
         tf::Matrix3x3 M(
-            R(0,0), R(0,1), R(0,2),
-            R(1,0), R(1,1), R(1,2),
-            R(2,0), R(2,1), R(2,2)
+            R_final(0,0), R_final(0,1), R_final(0,2),
+            R_final(1,0), R_final(1,1), R_final(1,2),
+            R_final(2,0), R_final(2,1), R_final(2,2)
         );
         
-        tf::Vector3 V(t(0), t(1), t(2));
+        tf::Vector3 V(t_final(0), t_final(1), t_final(2));
         
         tf::Transform transform = tf::Transform(M, V);
         br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "ORB_SLAM3"));

@@ -19,7 +19,7 @@ class YOLOv8Detector:
         self.dynamic_classes = rospy.get_param('~dynamic_classes', [0, 1, 2, 3, 5, 7])  # COCO classes for person, bicycle, car, motorcycle, bus, truck
         
         # Load YOLOv8 model
-        self.model = YOLO(self.model_path)
+        self.model = YOLO(self.model_path, verbose=False)
         
         # CV Bridge
         self.bridge = CvBridge()
@@ -45,7 +45,7 @@ class YOLOv8Detector:
             dynamic_mask = np.zeros((height, width), dtype=np.uint8)
             
             # Run YOLOv8 detection
-            results = self.model(cv_image, conf=self.confidence_threshold)
+            results = self.model(cv_image, conf=self.confidence_threshold, verbose=False)
             
             # Visualization image
             vis_image = cv_image.copy()
