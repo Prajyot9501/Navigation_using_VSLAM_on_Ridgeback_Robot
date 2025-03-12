@@ -29,22 +29,12 @@ public:
         // Publisher
         cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/orb_slam3/map_points", 1);
         
-        // Create transformation matrix for coordinate conversion
-        // This transforms from ORB-SLAM3 coordinate system to ROS standard
-        // ORB-SLAM3: Z forward, X right, Y up
-        // ROS standard: X forward, Y left, Z up
-        transform_matrix_.setIdentity();
-        Eigen::Matrix3d rot;
-        // X = Z, Y = -X, Z = Y (from ORB-SLAM3 to ROS standard)
-        rot << 0, 0, 1,
-               -1, 0, 0,
-               0, 1, 0;
-        transform_matrix_.block<3,3>(0,0) = rot;
+        // No coordinate transform needed - we're now doing this in the SLAM node
         
         // Timer
         timer_ = nh_.createTimer(ros::Duration(1.0/update_rate_), &SlamPointcloudPublisher::timerCallback, this);
         
-        ROS_INFO("Slam Pointcloud Publisher initialized with coordinate frame correction");
+        ROS_INFO("Slam Pointcloud Publisher initialized - using TF coordinate frames directly");
     }
 
 private:
@@ -59,17 +49,6 @@ private:
     double radius_;
     
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_;
-    Eigen::Matrix4d transform_matrix_;
-    
-    // Transform a point from ORB-SLAM3 coordinates to ROS standard coordinates
-    void transformPoint(double& x, double& y, double& z)
-    {
-        Eigen::Vector4d point_orb(x, y, z, 1.0);
-        Eigen::Vector4d point_ros = transform_matrix_ * point_orb;
-        x = point_ros(0);
-        y = point_ros(1);
-        z = point_ros(2);
-    }
     
     void timerCallback(const ros::TimerEvent& event)
     {
@@ -80,14 +59,10 @@ private:
             // Try to get the latest transform from the SLAM system
             tf_listener_.lookupTransform(frame_id_, "ORB_SLAM3", ros::Time(0), transform);
             
-            // Get the camera position
+            // Get the camera position directly from the transform
             double x = transform.getOrigin().x();
             double y = transform.getOrigin().y();
             double z = transform.getOrigin().z();
-            
-            // Apply coordinate frame correction
-            double orig_x = x, orig_y = y, orig_z = z;
-            transformPoint(x, y, z);
             
             // Add camera position to cloud
             pcl::PointXYZRGB camera_point;
@@ -112,39 +87,43 @@ private:
             if (add_point)
             {
                 cloud_->points.push_back(camera_point);
-                
-                // Also add some points around the camera position to simulate a map
-                for (int i = 0; i < 10; i++) // Add 10 points per frame
-                {
-                    double theta = 2.0 * M_PI * (double)rand() / RAND_MAX;
-                    double phi = M_PI * (double)rand() / RAND_MAX;
-                    double radius = radius_ * (double)rand() / RAND_MAX;
-                    
-                    // Generate in original coordinate system
-                    double px = orig_x + radius * sin(phi) * cos(theta);
-                    double py = orig_y + radius * sin(phi) * sin(theta);
-                    double pz = orig_z + radius * cos(phi);
-                    
-                    // Transform to ROS coordinate system
-                    transformPoint(px, py, pz);
-                    
-                    pcl::PointXYZRGB point;
-                    point.x = px;
-                    point.y = py;
-                    point.z = pz;
-                    
-                    // Set color based on position
-                    point.r = 128 + 127 * sin(theta);
-                    point.g = 128 + 127 * cos(phi);
-                    point.b = 128 + 127 * cos(theta);
-                    
-                    cloud_->points.push_back(point);
+
+                try {
+                    for (int i = 0; i < 10; i++) // Add 10 points per frame
+                    {
+                        double theta = 2.0 * M_PI * (double)rand() / RAND_MAX;
+                        double phi = M_PI * (double)rand() / RAND_MAX;
+                        double radius = radius_ * (double)rand() / RAND_MAX;
+                        
+                        // Generate points in current coordinate system directly
+                        double px = x + radius * sin(phi) * cos(theta);
+                        double py = y + radius * sin(phi) * sin(theta);
+                        double pz = z + radius * cos(phi);
+                        
+                        pcl::PointXYZRGB point;
+                        point.x = px;
+                        point.y = py;
+                        point.z = pz;
+                        
+                        // Set color based on position
+                        point.r = 128 + 127 * sin(theta);
+                        point.g = 128 + 127 * cos(phi);
+                        point.b = 128 + 127 * cos(theta);
+                        
+                        cloud_->points.push_back(point);
+                    }
+                } catch (const std::exception& e) {
+                    ROS_ERROR("Exception in point generation: %s", e.what());
                 }
                 
-                // Limit cloud size
-                if (cloud_->points.size() > num_points_)
-                {
-                    cloud_->points.erase(cloud_->points.begin(), cloud_->points.begin() + (cloud_->points.size() - num_points_));
+                // Also add some points around the camera position to simulate a map
+                
+                if (cloud_->points.size() >= num_points_) {
+                    // If we're at or exceeding the limit, clear some points
+                    size_t remove_count = std::min(cloud_->points.size() - num_points_ + 20, cloud_->points.size());
+                    if (remove_count > 0) {
+                        cloud_->points.erase(cloud_->points.begin(), cloud_->points.begin() + remove_count);
+                    }
                 }
             }
             
