@@ -87,36 +87,43 @@ private:
             if (add_point)
             {
                 cloud_->points.push_back(camera_point);
-                
-                // Also add some points around the camera position to simulate a map
-                for (int i = 0; i < 10; i++) // Add 10 points per frame
-                {
-                    double theta = 2.0 * M_PI * (double)rand() / RAND_MAX;
-                    double phi = M_PI * (double)rand() / RAND_MAX;
-                    double radius = radius_ * (double)rand() / RAND_MAX;
-                    
-                    // Generate points in current coordinate system directly
-                    double px = x + radius * sin(phi) * cos(theta);
-                    double py = y + radius * sin(phi) * sin(theta);
-                    double pz = z + radius * cos(phi);
-                    
-                    pcl::PointXYZRGB point;
-                    point.x = px;
-                    point.y = py;
-                    point.z = pz;
-                    
-                    // Set color based on position
-                    point.r = 128 + 127 * sin(theta);
-                    point.g = 128 + 127 * cos(phi);
-                    point.b = 128 + 127 * cos(theta);
-                    
-                    cloud_->points.push_back(point);
+
+                try {
+                    for (int i = 0; i < 10; i++) // Add 10 points per frame
+                    {
+                        double theta = 2.0 * M_PI * (double)rand() / RAND_MAX;
+                        double phi = M_PI * (double)rand() / RAND_MAX;
+                        double radius = radius_ * (double)rand() / RAND_MAX;
+                        
+                        // Generate points in current coordinate system directly
+                        double px = x + radius * sin(phi) * cos(theta);
+                        double py = y + radius * sin(phi) * sin(theta);
+                        double pz = z + radius * cos(phi);
+                        
+                        pcl::PointXYZRGB point;
+                        point.x = px;
+                        point.y = py;
+                        point.z = pz;
+                        
+                        // Set color based on position
+                        point.r = 128 + 127 * sin(theta);
+                        point.g = 128 + 127 * cos(phi);
+                        point.b = 128 + 127 * cos(theta);
+                        
+                        cloud_->points.push_back(point);
+                    }
+                } catch (const std::exception& e) {
+                    ROS_ERROR("Exception in point generation: %s", e.what());
                 }
                 
-                // Limit cloud size
-                if (cloud_->points.size() > num_points_)
-                {
-                    cloud_->points.erase(cloud_->points.begin(), cloud_->points.begin() + (cloud_->points.size() - num_points_));
+                // Also add some points around the camera position to simulate a map
+                
+                if (cloud_->points.size() >= num_points_) {
+                    // If we're at or exceeding the limit, clear some points
+                    size_t remove_count = std::min(cloud_->points.size() - num_points_ + 20, cloud_->points.size());
+                    if (remove_count > 0) {
+                        cloud_->points.erase(cloud_->points.begin(), cloud_->points.begin() + remove_count);
+                    }
                 }
             }
             

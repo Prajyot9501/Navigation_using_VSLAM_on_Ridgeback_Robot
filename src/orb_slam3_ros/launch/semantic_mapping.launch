@@ -53,5 +53,5 @@
   </node>
   
   <!-- RViz for visualization -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find orb_slam3_ros)/rviz/semantic_mapping.rviz"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find orb_slam3_ros)/rviz/semantic_mapping.rviz" respawn="true"/>
 </launch>
