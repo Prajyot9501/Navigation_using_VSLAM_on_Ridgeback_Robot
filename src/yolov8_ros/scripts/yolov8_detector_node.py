@@ -4,10 +4,13 @@ import rospy
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import Header
 from ultralytics import YOLO
 import torch
+
+# Import custom message
+from yolov8_ros.msg import Detection2D, Detections2D
 
 class YOLOv8Detector:
     def __init__(self):
@@ -27,11 +30,19 @@ class YOLOv8Detector:
         # Publishers
         self.mask_pub = rospy.Publisher('/dynamic_mask', Image, queue_size=1)
         self.vis_pub = rospy.Publisher('/detection_visualization', Image, queue_size=1)
+        self.detections_pub = rospy.Publisher('/yolo/detections', Detections2D, queue_size=1)
+        
+        # Camera info subscriber for potential future 3D projection
+        self.camera_info = None
+        self.camera_info_sub = rospy.Subscriber('/camera/rgb/camera_info', CameraInfo, self.camera_info_callback)
         
         # Subscribers
         self.image_sub = rospy.Subscriber('/camera/rgb/image_raw', Image, self.image_callback)
         
         rospy.loginfo("YOLOv8 detector initialized with model: %s", self.model_path)
+    
+    def camera_info_callback(self, msg):
+        self.camera_info = msg
     
     def image_callback(self, msg):
         try:
@@ -50,16 +61,38 @@ class YOLOv8Detector:
             # Visualization image
             vis_image = cv_image.copy()
             
+            # Create detection message
+            detection_msg = Detections2D()
+            detection_msg.header = msg.header
+            
             # Process detection results
             for r in results:
                 boxes = r.boxes
                 masks = r.masks if hasattr(r, 'masks') else None
                 
-                if masks is not None:
-                    for i, (box, mask) in enumerate(zip(boxes, masks)):
-                        # Get class ID
-                        cls_id = int(box.cls.item())
-                        
+                for i, box in enumerate(boxes):
+                    # Get detection info
+                    cls_id = int(box.cls.item())
+                    conf = float(box.conf.item())
+                    x1, y1, x2, y2 = map(float, box.xyxy[0])
+                    class_name = self.model.names[cls_id]
+                    
+                    # Create Detection2D message
+                    det = Detection2D()
+                    det.class_name = class_name
+                    det.class_id = cls_id
+                    det.confidence = conf
+                    det.x_min = x1
+                    det.y_min = y1
+                    det.x_max = x2
+                    det.y_max = y2
+                    
+                    # Add to detections message
+                    detection_msg.detections.append(det)
+                    
+                    # Process segmentation masks if available
+                    if masks is not None and i < len(masks):
+                        mask = masks[i]
                         # Check if object is dynamic
                         if cls_id in self.dynamic_classes:
                             # Convert mask to numpy array and resize to image dimensions
@@ -76,14 +109,18 @@ class YOLOv8Detector:
                             # Draw on visualization image
                             color = (0, 0, 255)  # Red for dynamic objects
                             vis_image = self.draw_mask_overlay(vis_image, mask_binary, color, 0.5)
-                            
-                            # Draw bounding box and label
-                            x1, y1, x2, y2 = map(int, box.xyxy[0])
-                            conf = float(box.conf)
-                            class_name = self.model.names[cls_id]
-                            cv2.rectangle(vis_image, (x1, y1), (x2, y2), color, 2)
-                            cv2.putText(vis_image, f"{class_name} {conf:.2f}", (x1, y1 - 10),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                    
+                    # Draw bounding box and label (for all objects, not just dynamic)
+                    is_dynamic = cls_id in self.dynamic_classes
+                    color = (0, 0, 255) if is_dynamic else (0, 255, 0)  # Red for dynamic, green for static
+                    
+                    cv2.rectangle(vis_image, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+                    cv2.putText(vis_image, f"{class_name} {conf:.2f}", 
+                                (int(x1), int(y1) - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            
+            # Publish detection message
+            self.detections_pub.publish(detection_msg)
             
             # Publish dynamic mask
             mask_msg = self.bridge.cv2_to_imgmsg(dynamic_mask, encoding="mono8")

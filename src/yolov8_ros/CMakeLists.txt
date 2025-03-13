@@ -8,6 +8,21 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   cv_bridge
   image_transport
+  message_generation
+)
+
+# Add message files
+add_message_files(
+  FILES
+  Detection2D.msg
+  Detections2D.msg
+)
+
+# Generate messages
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
 )
 
 catkin_package(
@@ -18,6 +33,7 @@ catkin_package(
   sensor_msgs
   cv_bridge
   image_transport
+  message_runtime
 )
 
 include_directories(
