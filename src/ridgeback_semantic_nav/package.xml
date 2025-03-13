@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>ridgeback_semantic_nav</name>
+  <version>0.1.0</version>
+  <description>The ridgeback_semantic_nav package - integrates semantic mapping with Ridgeback navigation</description>
+
+  <maintainer email="your_email@example.com">Your Name</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <depend>move_base</depend>
+  <depend>tf2_ros</depend>
+  <depend>nav_msgs</depend>
+  <depend>rviz</depend>
+  <depend>semantic_mapping</depend>
+  <depend>ridgeback_description</depend>
+  <depend>joint_state_publisher</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>map_server</depend>
+  <depend>orb_slam3_ros</depend>
+  <depend>yolov8_ros</depend>
+  
+</package>

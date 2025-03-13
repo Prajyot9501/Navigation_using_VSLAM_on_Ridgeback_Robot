@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Use simulated time -->
+  <param name="/use_sim_time" value="true"/>
+  
+  <!-- Arguments -->
+  <arg name="map_file" default="$(find orb_slam3_ros)/maps/my_map.yaml"/>
+  <arg name="db_path" default="$(env HOME)/semantic_map.db"/>
+  <arg name="rviz_config" default="$(find ridgeback_semantic_nav)/rviz/ridgeback_nav.rviz"/>
+  
+  <!-- Load the map -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)"/>
+  
+  <!-- Include TF setup -->
+  <include file="$(find ridgeback_semantic_nav)/launch/ridgeback_tf.launch"/>
+  
+  <!-- Include Ridgeback robot description - this already includes robot_state_publisher -->
+  <include file="$(find ridgeback_description)/launch/description.launch"/>
+  
+  <!-- Joint state publisher for visualization -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  
+  <!-- Semantic mapper node -->
+  <node name="semantic_mapper" pkg="semantic_mapping" type="semantic_mapper_node.py" output="screen">
+    <param name="db_path" value="$(arg db_path)"/>
+    <param name="confidence_threshold" value="0.7"/>
+    <param name="min_detections" value="3"/>
+    <param name="max_distance" value="0.5"/>
+    <param name="camera_frame" value="ORB_SLAM3"/>
+    <param name="world_frame" value="world"/>
+  </node>
+  
+  <!-- Move base for navigation -->
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <rosparam file="$(find ridgeback_semantic_nav)/config/costmap_common.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find ridgeback_semantic_nav)/config/costmap_common.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find ridgeback_semantic_nav)/config/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find ridgeback_semantic_nav)/config/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find ridgeback_semantic_nav)/config/base_local_planner_params.yaml" command="load" />
+    <rosparam file="$(find ridgeback_semantic_nav)/config/move_base_params.yaml" command="load" />
+  </node>
+  
+  <!-- Enhanced semantic navigator -->
+  <node name="semantic_navigator" pkg="ridgeback_semantic_nav" type="enhanced_semantic_navigator.py" output="screen">
+    <param name="world_frame" value="world"/>
+    <param name="min_confidence" value="0.7"/>
+    <param name="approach_distance" value="0.75"/>
+  </node>
+  
+  <!-- RViz for visualization -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rviz_config)" />
+</launch>

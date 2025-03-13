@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Use simulated time -->
+  <param name="/use_sim_time" value="false"/>
+  
+  <!-- Use absolute paths to the map file -->
+  <arg name="map_file" default="$(env HOME)/capstone_final/ridgeback_ws/src/orb_slam3_ros/maps/my_map.yaml"/>
+  <arg name="db_path" default="$(env HOME)/semantic_map.db"/>
+  
+  <!-- Print the absolute map path to verify it -->
+  <node name="map_path_echo" pkg="rostopic" type="rostopic" 
+        args="echo -n 1 /map_path" output="screen"/>
+  <node name="map_path_pub" pkg="rostopic" type="rostopic" 
+        args="pub /map_path std_msgs/String 'data: $(arg map_file)'" output="screen"/>
+  
+  <!-- Load the map using absolute path -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" output="screen"/>
+  
+  <!-- Load our simple robot model -->
+  <param name="robot_description" textfile="$(env HOME)/capstone_final/ridgeback_ws/src/ridgeback_semantic_nav/urdf/simple_robot.urdf" />
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  
+  <!-- Simple TF setup - robot in the middle of the map -->
+  <node pkg="tf" type="static_transform_publisher" name="map_to_odom" 
+        args="0 0 0 0 0 0 map odom 100" />
+  <node pkg="tf" type="static_transform_publisher" name="odom_to_base" 
+        args="0 0 0 0 0 0 odom base_link 100" />
+  
+  <!-- Load the semantic database -->
+  <node name="semantic_mapper" pkg="semantic_mapping" type="semantic_mapper_node.py" output="screen">
+    <param name="db_path" value="$(arg db_path)"/>
+    <param name="confidence_threshold" value="0.7"/>
+    <param name="min_detections" value="3"/>
+    <param name="max_distance" value="0.5"/>
+    <param name="camera_frame" value="base_link"/>
+    <param name="world_frame" value="map"/>
+  </node>
+  
+  <!-- Move base with minimal configuration -->
+  <node pkg="move_base" type="move_base" respawn="true" name="move_base" output="screen">
+    <rosparam>
+      # Minimal planner configuration
+      planner_frequency: 1.0
+      recovery_behavior_enabled: false
+      controller_frequency: 5.0
+      
+      # Global costmap - minimal static map configuration
+      global_costmap:
+        global_frame: map
+        robot_base_frame: base_link
+        update_frequency: 1.0
+        publish_frequency: 1.0
+        static_map: true
+        
+      # Local costmap - minimal configuration
+      local_costmap:
+        global_frame: odom
+        robot_base_frame: base_link
+        update_frequency: 5.0
+        publish_frequency: 2.0
+        static_map: false
+        rolling_window: true
+        width: 5.0
+        height: 5.0
+        resolution: 0.1
+        
+      # Simple base local planner
+      TrajectoryPlannerROS:
+        max_vel_x: 0.5
+        min_vel_x: 0.1
+        max_vel_theta: 1.0
+        min_in_place_vel_theta: 0.4
+        escape_vel: -0.1
+        acc_lim_theta: 3.2
+        acc_lim_x: 2.5
+        acc_lim_y: 2.5
+        holonomic_robot: true
+        yaw_goal_tolerance: 0.3
+        xy_goal_tolerance: 0.15
+        latch_xy_goal_tolerance: false
+    </rosparam>
+  </node>
+  
+  <!-- Enhanced semantic navigator -->
+  <node name="semantic_navigator" pkg="ridgeback_semantic_nav" type="enhanced_semantic_navigator.py" output="screen">
+    <param name="world_frame" value="map"/>
+    <param name="min_confidence" value="0.7"/>
+    <param name="approach_distance" value="0.75"/>
+  </node>
+  
+  <!-- RViz configuration using minimal settings -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(env HOME)/capstone_final/ridgeback_ws/src/ridgeback_semantic_nav/rviz/ridgeback_nav.rviz"/>
+</launch>
