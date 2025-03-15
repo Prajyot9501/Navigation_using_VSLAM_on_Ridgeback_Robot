@@ -4,14 +4,13 @@
   <node pkg="tf" type="static_transform_publisher" name="world_to_map"
         args="0 0 0 0 0 0 world map 100" />
   
-  <!-- Static transform from map to odom (initially identity) -->
+  <!-- Static transform from map to odom with robot placed in the center of the map -->
   <node pkg="tf" type="static_transform_publisher" name="map_to_odom"
         args="0 0 0 0 0 0 map odom 100" />
         
-  <!-- Static transform from odom to base_link (initially identity) -->
-  <!-- This will be replaced by robot's actual odometry -->
+  <!-- Position the robot in a known free space in the map -->
   <node pkg="tf" type="static_transform_publisher" name="odom_to_base_link"
-        args="0 0 0 0 0 0 odom base_link 100" />
+        args="0 0 0.1 0 0 0 odom base_link 100" />
         
   <!-- Static transform from base_link to base_footprint -->
   <node pkg="tf" type="static_transform_publisher" name="base_link_to_footprint"

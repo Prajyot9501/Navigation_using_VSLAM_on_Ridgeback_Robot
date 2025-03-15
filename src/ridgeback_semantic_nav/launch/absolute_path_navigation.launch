@@ -3,8 +3,8 @@
   <!-- Use simulated time -->
   <param name="/use_sim_time" value="false"/>
   
-  <!-- Use absolute paths to the map file -->
-  <arg name="map_file" default="$(env HOME)/capstone_final/ridgeback_ws/src/orb_slam3_ros/maps/my_map.yaml"/>
+  <!-- Use scaled map file -->
+  <arg name="map_file" default="$(env HOME)/capstone_final/ridgeback_ws/src/orb_slam3_ros/maps/my_map_scaled.yaml"/>
   <arg name="db_path" default="$(env HOME)/semantic_map.db"/>
   
   <!-- Print the absolute map path to verify it -->
@@ -16,18 +16,15 @@
   <!-- Load the map using absolute path -->
   <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" output="screen"/>
   
-  <!-- Load our simple robot model -->
-  <param name="robot_description" textfile="$(env HOME)/capstone_final/ridgeback_ws/src/ridgeback_semantic_nav/urdf/simple_robot.urdf" />
-  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
-  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  <!-- Include Ridgeback robot description -->
+  <include file="$(find ridgeback_description)/launch/description.launch"/>
   
   <!-- Critical: Set up proper TF tree with world as the root frame -->
-<node pkg="tf" type="static_transform_publisher" name="world_to_map" 
-      args="0 0 0 0 0 0 world map 100" />
-<node pkg="tf" type="static_transform_publisher" name="map_to_odom" 
-      args="0 0 0 0 0 0 map odom 100" />
-<node pkg="tf" type="static_transform_publisher" name="odom_to_base" 
-      args="0 0 0.105 0 0 0 odom base_link 100" />
+  <include file="$(find ridgeback_semantic_nav)/launch/ridgeback_tf.launch"/>
+
+  <!-- Joint state publisher for visualization -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  
   
   <!-- Load the semantic database -->
   <node name="semantic_mapper" pkg="semantic_mapping" type="semantic_mapper_node.py" output="screen">
@@ -39,23 +36,26 @@
     <param name="world_frame" value="map"/>
   </node>
   
-  <!-- Move base with minimal configuration -->
+  <!-- Move base with optimized configuration -->
   <node pkg="move_base" type="move_base" respawn="true" name="move_base" output="screen">
     <rosparam>
-      # Minimal planner configuration
-      planner_frequency: 1.0
-      recovery_behavior_enabled: false
-      controller_frequency: 5.0
+      # Planner configuration
+      planner_frequency: 2.0
+      recovery_behavior_enabled: true
+      controller_frequency: 10.0
       
-      # Global costmap - minimal static map configuration
+      # Global costmap configuration
       global_costmap:
         global_frame: map
         robot_base_frame: base_link
-        update_frequency: 1.0
+        update_frequency: 2.0
         publish_frequency: 1.0
         static_map: true
+        inflation_radius: 0.05  # Reduced inflation radius for better planning
+        transform_tolerance: 1.0
+        cost_scaling_factor: 30.0  # Higher value = faster cost decay
         
-      # Local costmap - minimal configuration
+      # Local costmap configuration
       local_costmap:
         global_frame: odom
         robot_base_frame: base_link
@@ -63,34 +63,55 @@
         publish_frequency: 2.0
         static_map: false
         rolling_window: true
-        width: 5.0
-        height: 5.0
-        resolution: 0.1
+        width: 3.0
+        height: 3.0
+        resolution: 0.05
+        inflation_radius: 0.05  # Reduced inflation radius
+        transform_tolerance: 1.0
+        cost_scaling_factor: 30.0
         
-      # Simple base local planner
+      # Very tiny footprint - this is what the planner uses, not what's shown in RViz
+      footprint: [[-0.1, -0.1], [-0.1, 0.1], [0.1, 0.1], [0.1, -0.1]]
+      
+      # TrajectoryPlannerROS optimized for tight spaces
       TrajectoryPlannerROS:
-        max_vel_x: 0.5
-        min_vel_x: 0.1
-        max_vel_theta: 1.0
-        min_in_place_vel_theta: 0.4
+        max_vel_x: 0.3
+        min_vel_x: 0.05
+        max_vel_theta: 0.8
+        min_in_place_vel_theta: 0.2
         escape_vel: -0.1
-        acc_lim_theta: 3.2
-        acc_lim_x: 2.5
-        acc_lim_y: 2.5
+        acc_lim_theta: 2.0
+        acc_lim_x: 1.5
+        acc_lim_y: 1.5
         holonomic_robot: true
-        yaw_goal_tolerance: 0.3
-        xy_goal_tolerance: 0.15
-        latch_xy_goal_tolerance: false
+        yaw_goal_tolerance: 0.5  # More lenient yaw tolerance 
+        xy_goal_tolerance: 0.3   # More lenient position tolerance
+        latch_xy_goal_tolerance: true
+        oscillation_reset_dist: 0.05
+      
+      # Recovery behaviors
+      recovery_behaviors:
+        - name: conservative_reset
+          type: clear_costmap_recovery/ClearCostmapRecovery
+        - name: rotate_recovery
+          type: rotate_recovery/RotateRecovery
+        - name: aggressive_reset
+          type: clear_costmap_recovery/ClearCostmapRecovery
+      
+      conservative_reset:
+        reset_distance: 0.2
+      aggressive_reset:
+        reset_distance: 0.0
     </rosparam>
   </node>
   
   <!-- Enhanced semantic navigator -->
   <node name="semantic_navigator" pkg="ridgeback_semantic_nav" type="enhanced_semantic_navigator.py" output="screen">
     <param name="world_frame" value="map"/>
-    <param name="min_confidence" value="0.7"/>
-    <param name="approach_distance" value="0.75"/>
+    <param name="min_confidence" value="0.6"/>
+    <param name="approach_distance" value="0.4"/>  <!-- Reduced approach distance -->
   </node>
   
   <!-- RViz configuration using minimal settings -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(env HOME)/capstone_final/ridgeback_ws/src/ridgeback_semantic_nav/rviz/ridgeback_nav.rviz"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find ridgeback_semantic_nav)/rviz/ridgeback_nav.rviz"/>
 </launch>

@@ -15,7 +15,7 @@ class ObjectNavigator:
         rospy.init_node('object_navigator', anonymous=True)
         
         # Parameters
-        self.approach_distance = rospy.get_param('~approach_distance', 0.75)  # meters
+        self.approach_distance = rospy.get_param('~approach_distance', 0.4)  # meters
         self.frame_id = rospy.get_param('~frame_id', 'map')
         
         # Set up visualization marker
@@ -60,11 +60,45 @@ class ObjectNavigator:
                 rospy.loginfo("Found %s at position: (%.2f, %.2f, %.2f)", 
                              object_data['class_name'], x, y, z)
                 
+                # Clear costmaps before navigation
+                try:
+                    rospy.wait_for_service('/move_base/clear_costmaps', timeout=2.0)
+                    clear_costmaps = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
+                    clear_costmaps()
+                    rospy.loginfo("Cleared costmaps before navigation")
+                except (rospy.ROSException, rospy.ServiceException) as e:
+                    rospy.logwarn("Could not clear costmaps: %s", str(e))
+                
                 # Publish a marker at the target location
                 self.publish_target_marker(x, y, z, object_data['class_name'])
                 
-                # Send the navigation goal
-                return self.send_navigation_goal(x, y, z)
+                # Send the navigation goal via topic (more reliable for tight spaces)
+                goal_pose = PoseStamped()
+                goal_pose.header.frame_id = "map"
+                goal_pose.header.stamp = rospy.Time.now()
+                
+                # Set the position
+                goal_pose.pose.position.x = x
+                goal_pose.pose.position.y = y
+                goal_pose.pose.position.z = 0.0  # Keep the robot on the ground
+                
+                # Set orientation (identity quaternion)
+                goal_pose.pose.orientation.w = 1.0
+                
+                rospy.loginfo("Sending navigation goal to position: (%.2f, %.2f, 0.0)", x, y)
+                
+                # Publish goal via topic
+                if hasattr(self, 'goal_pub'):
+                    self.goal_pub.publish(goal_pose)
+                    rospy.loginfo("Goal published via topic")
+                    return True
+                else:
+                    # Use action client as backup
+                    goal = MoveBaseGoal()
+                    goal.target_pose = goal_pose
+                    self.move_base_client.send_goal(goal)
+                    rospy.loginfo("Goal sent via action client")
+                    return True
                 
             except json.JSONDecodeError:
                 rospy.logerr("Failed to parse response as JSON: %s", response.response)
@@ -89,14 +123,11 @@ class ObjectNavigator:
         marker.pose.position.y = y
         marker.pose.position.z = 0.0
         marker.pose.orientation.w = 1.0
-
-        rospy.loginfo("Object 3D position: (%.2f, %.2f, %.2f)", x, y, z)
-        rospy.loginfo("Sending navigation goal to 2D position: (%.2f, %.2f, 0.0)", x, y)
         
         # Set scale and color (bright green)
-        marker.scale.x = 0.3
-        marker.scale.y = 0.3
-        marker.scale.z = 0.3
+        marker.scale.x = 0.2
+        marker.scale.y = 0.2
+        marker.scale.z = 0.2
         
         marker.color.r = 0.0
         marker.color.g = 1.0
@@ -112,48 +143,6 @@ class ObjectNavigator:
         # Publish the marker
         self.marker_pub.publish(marker)
         rospy.loginfo("Published target marker at (%.2f, %.2f, %.2f)", x, y, z)
-    
-    def send_navigation_goal(self, x, y, z):
-        """Send a navigation goal to move_base"""
-        # Create a goal message
-        goal_pose = PoseStamped()
-        goal_pose.header.frame_id = "map"
-        goal_pose.header.stamp = rospy.Time.now()
-        
-        # Set the position
-        goal_pose.pose.position.x = x
-        goal_pose.pose.position.y = y
-        goal_pose.pose.position.z = 0.0  # Keep the robot on the ground
-        
-        # Set orientation (identity quaternion)
-        goal_pose.pose.orientation.w = 1.0
-        
-        # Try action client approach first
-        if hasattr(self, 'move_base_client') and self.move_base_client is not None:
-            # Convert to MoveBaseGoal
-            goal = MoveBaseGoal()
-            goal.target_pose = goal_pose
-            
-            rospy.loginfo("Sending navigation goal to (%.2f, %.2f, %.2f) via action client", x, y, z)
-            self.move_base_client.send_goal(goal)
-            
-            # Wait for result with timeout
-            rospy.loginfo("Waiting for navigation to complete...")
-            success = self.move_base_client.wait_for_result(rospy.Duration(60.0))
-            
-            if success:
-                state = self.move_base_client.get_state()
-                rospy.loginfo("Navigation finished with state: %d", state)
-                return True
-            else:
-                rospy.logwarn("Navigation did not finish before timeout")
-                return False
-        else:
-            # Fallback to direct topic publishing
-            rospy.loginfo("Sending navigation goal to (%.2f, %.2f, %.2f) via topic", x, y, z)
-            self.goal_pub.publish(goal_pose)
-            rospy.loginfo("Goal published successfully")
-            return True
 
 def main():
     parser = argparse.ArgumentParser(description='Navigate to semantic objects')
@@ -175,6 +164,7 @@ def main():
 
 if __name__ == '__main__':
     try:
+        from std_srvs.srv import Empty
         sys.exit(main())
     except rospy.ROSInterruptException:
         pass

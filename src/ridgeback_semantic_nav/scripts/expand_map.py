@@ -8,8 +8,8 @@ import yaml
 map_dir = os.path.expanduser("~/capstone_final/ridgeback_ws/src/orb_slam3_ros/maps")
 input_yaml = os.path.join(map_dir, "my_map.yaml")
 input_pgm = os.path.join(map_dir, "my_map.pgm")
-output_yaml = os.path.join(map_dir, "my_map_large.yaml")
-output_pgm = os.path.join(map_dir, "my_map_large.pgm")
+output_yaml = os.path.join(map_dir, "my_map_scaled.yaml")
+output_pgm = os.path.join(map_dir, "my_map_scaled.pgm")
 
 # Load map YAML data
 with open(input_yaml, 'r') as f:
@@ -29,35 +29,39 @@ if map_img is None:
 original_height, original_width = map_img.shape
 print(f"Original map size: {original_width}x{original_height} pixels")
 
-# Define padding (in pixels) to add on each side
-padding = 200
+# Scale factor (increase this to scale up the map/zoom in)
+scale_factor = 2.0  # Double the size
 
-# Create new, larger image with padding
-new_width = original_width + 2*padding
-new_height = original_height + 2*padding
-large_map = np.ones((new_height, new_width), dtype=np.uint8) * 205  # 205 is "unknown" in maps
+# Calculate new dimensions
+new_width = int(original_width * scale_factor)
+new_height = int(original_height * scale_factor)
 
-# Place original map in the center of the new map
-large_map[padding:padding+original_height, padding:padding+original_width] = map_img
+# Resize the map (scale up)
+scaled_map = cv2.resize(map_img, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
 
-# Calculate new origin (adjusting for the padding)
-new_origin_x = old_origin[0] - padding * resolution
-new_origin_y = old_origin[1] - padding * resolution
+# Calculate new resolution (smaller resolution for zoomed in map)
+new_resolution = resolution / scale_factor
+
+# Calculate new origin
+# Origin needs adjustment because scaling happens around the center
+new_origin_x = old_origin[0] * scale_factor
+new_origin_y = old_origin[1] * scale_factor
 new_origin = [new_origin_x, new_origin_y, old_origin[2]]
 
-# Save the new, larger map
-cv2.imwrite(output_pgm, large_map)
-print(f"Saved expanded map to: {output_pgm}")
+# Save the new, scaled map
+cv2.imwrite(output_pgm, scaled_map)
+print(f"Saved scaled map to: {output_pgm}")
 
 # Create and save new YAML file
 new_map_data = map_data.copy()
 new_map_data['image'] = output_pgm
+new_map_data['resolution'] = new_resolution
 new_map_data['origin'] = new_origin
 
 with open(output_yaml, 'w') as f:
     yaml.dump(new_map_data, f, default_flow_style=False)
 
-print(f"Saved expanded map YAML to: {output_yaml}")
-print(f"New map: resolution={resolution}, origin={new_origin}")
-print(f"New map size: {new_width}x{new_height} pixels = {new_width*resolution}x{new_height*resolution} meters")
-print(f"To use this map, launch with: roslaunch ridgeback_semantic_nav absolute_path_navigation.launch map_file:={output_yaml}")
+print(f"Saved scaled map YAML to: {output_yaml}")
+print(f"New map: resolution={new_resolution}, origin={new_origin}")
+print(f"New map size: {new_width}x{new_height} pixels = {new_width*new_resolution}x{new_height*new_resolution} meters")
+print(f"The map is now scaled up by {scale_factor}x which should make navigation easier with the Ridgeback model")

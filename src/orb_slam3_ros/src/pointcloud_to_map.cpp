@@ -28,8 +28,8 @@ public:
         nh_.param<std::string>("frame_id", frame_id_, "world");
         nh_.param<double>("occupancy_grid_resolution", occupancy_grid_resolution_, 0.05); // 5cm per cell
         nh_.param<double>("octomap_resolution", octomap_resolution_, 0.1); // 10cm per voxel
-        nh_.param<double>("z_min", z_min_, -0.1); // Ground plane threshold
-        nh_.param<double>("z_max", z_max_, 2.0);  // Maximum height to consider
+        nh_.param<double>("z_min", z_min_, -2.5); // Ground plane threshold
+        nh_.param<double>("z_max", z_max_, 3.0);  // Maximum height to consider
         
         // Subscribers
         pointcloud_sub_ = nh_.subscribe("/orb_slam3/map_points", 1, &PointCloudToMap::pointcloudCallback, this);
