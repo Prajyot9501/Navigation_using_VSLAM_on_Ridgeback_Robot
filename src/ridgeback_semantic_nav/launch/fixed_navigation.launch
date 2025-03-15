@@ -1,20 +1,11 @@
 <?xml version="1.0"?>
 <launch>
-  <!-- Use simulated time -->
-  <param name="/use_sim_time" value="false"/>
-  
   <!-- Use absolute paths to the map file -->
   <arg name="map_file" default="$(env HOME)/capstone_final/ridgeback_ws/src/orb_slam3_ros/maps/my_map.yaml"/>
   <arg name="db_path" default="$(env HOME)/semantic_map.db"/>
   
-  <!-- Print the absolute map path to verify it -->
-  <node name="map_path_echo" pkg="rostopic" type="rostopic" 
-        args="echo -n 1 /map_path" output="screen"/>
-  <node name="map_path_pub" pkg="rostopic" type="rostopic" 
-        args="pub /map_path std_msgs/String 'data: $(arg map_file)'" output="screen"/>
-  
   <!-- Load the map using absolute path -->
-  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" output="screen"/>
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" output="screen"/>
   
   <!-- Load our simple robot model -->
   <param name="robot_description" textfile="$(env HOME)/capstone_final/ridgeback_ws/src/ridgeback_semantic_nav/urdf/simple_robot.urdf" />
@@ -22,12 +13,12 @@
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
   
   <!-- Critical: Set up proper TF tree with world as the root frame -->
-<node pkg="tf" type="static_transform_publisher" name="world_to_map" 
-      args="0 0 0 0 0 0 world map 100" />
-<node pkg="tf" type="static_transform_publisher" name="map_to_odom" 
-      args="0 0 0 0 0 0 map odom 100" />
-<node pkg="tf" type="static_transform_publisher" name="odom_to_base" 
-      args="0 0 0.105 0 0 0 odom base_link 100" />
+  <node pkg="tf" type="static_transform_publisher" name="world_to_map" 
+        args="0 0 0 0 0 0 world map 100" />
+  <node pkg="tf" type="static_transform_publisher" name="map_to_odom" 
+        args="0 0 0 0 0 0 map odom 100" />
+  <node pkg="tf" type="static_transform_publisher" name="odom_to_base" 
+        args="0 0 0 0 0 0 odom base_link 100" />
   
   <!-- Load the semantic database -->
   <node name="semantic_mapper" pkg="semantic_mapping" type="semantic_mapper_node.py" output="screen">
@@ -36,7 +27,7 @@
     <param name="min_detections" value="3"/>
     <param name="max_distance" value="0.5"/>
     <param name="camera_frame" value="base_link"/>
-    <param name="world_frame" value="map"/>
+    <param name="world_frame" value="world"/>
   </node>
   
   <!-- Move base with minimal configuration -->
@@ -86,11 +77,11 @@
   
   <!-- Enhanced semantic navigator -->
   <node name="semantic_navigator" pkg="ridgeback_semantic_nav" type="enhanced_semantic_navigator.py" output="screen">
-    <param name="world_frame" value="map"/>
+    <param name="world_frame" value="world"/>
     <param name="min_confidence" value="0.7"/>
     <param name="approach_distance" value="0.75"/>
   </node>
   
-  <!-- RViz configuration using minimal settings -->
+  <!-- RViz for visualization -->
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(env HOME)/capstone_final/ridgeback_ws/src/ridgeback_semantic_nav/rviz/ridgeback_nav.rviz"/>
 </launch>

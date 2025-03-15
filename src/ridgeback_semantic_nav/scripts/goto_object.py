@@ -87,8 +87,11 @@ class ObjectNavigator:
         # Set the position
         marker.pose.position.x = x
         marker.pose.position.y = y
-        marker.pose.position.z = z
+        marker.pose.position.z = 0.0
         marker.pose.orientation.w = 1.0
+
+        rospy.loginfo("Object 3D position: (%.2f, %.2f, %.2f)", x, y, z)
+        rospy.loginfo("Sending navigation goal to 2D position: (%.2f, %.2f, 0.0)", x, y)
         
         # Set scale and color (bright green)
         marker.scale.x = 0.3
@@ -114,7 +117,7 @@ class ObjectNavigator:
         """Send a navigation goal to move_base"""
         # Create a goal message
         goal_pose = PoseStamped()
-        goal_pose.header.frame_id = self.frame_id
+        goal_pose.header.frame_id = "map"
         goal_pose.header.stamp = rospy.Time.now()
         
         # Set the position

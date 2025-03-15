@@ -30,6 +30,8 @@ catkin_install_python(PROGRAMS
   scripts/enhanced_semantic_navigator.py
   scripts/debug_navigation.py
   scripts/goto_object.py
+  scripts/improved_goto_object.py
+  scripts/check_tf_objects.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
