@@ -21,12 +21,10 @@
   
   <!-- Critical: Set up proper TF tree with world as the root frame -->
   <include file="$(find ridgeback_semantic_nav)/launch/ridgeback_tf.launch"/>
-  
-    <!-- Add fake velocity controller -->
-  <node pkg="ridgeback_semantic_nav" type="fake_velocity_controller.py" name="fake_velocity_controller" output="screen"/>
 
   <!-- Joint state publisher for visualization -->
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  
   
   <!-- Load the semantic database -->
   <node name="semantic_mapper" pkg="semantic_mapping" type="semantic_mapper_node.py" output="screen">

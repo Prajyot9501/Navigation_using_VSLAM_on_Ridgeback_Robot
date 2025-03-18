@@ -15,8 +15,8 @@
   <!-- Map generation parameters -->
   <arg name="occupancy_grid_resolution" default="0.05"/>  <!-- 5cm resolution -->
   <arg name="octomap_resolution" default="0.1"/>         <!-- 10cm resolution -->
-  <arg name="z_min" default="-0.1"/>                     <!-- Floor threshold -->
-  <arg name="z_max" default="2.0"/>                      <!-- Maximum height -->
+  <arg name="z_min" default="-1.0"/>                     <!-- Floor threshold -->
+  <arg name="z_max" default="3.0"/>                      <!-- Maximum height -->
   
   <!-- YOLOv8 Dynamic Object Detection Node -->
   <node name="yolov8_detector" pkg="yolov8_ros" type="yolov8_detector_node.py" output="screen">

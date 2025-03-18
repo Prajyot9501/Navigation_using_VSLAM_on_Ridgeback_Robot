@@ -32,6 +32,7 @@ catkin_install_python(PROGRAMS
   scripts/goto_object.py
   scripts/improved_goto_object.py
   scripts/check_tf_objects.py
+  scripts/fake_velocity_controller.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

@@ -5,7 +5,7 @@
 
   <!-- Arguments -->
   <arg name="bag_file" default=""/>
-  <arg name="db_path" default="$(env HOME)/semantic_map.db"/>
+  <arg name="db_path" default="$(env HOME)/semantic_map_new.db"/>
   <arg name="voc_file" default="$(find orb_slam3_ros)/vocabulary/ORBvoc.txt"/>
   <arg name="settings_file" default="$(find orb_slam3_ros)/config/D455/D455.yaml"/>
   <arg name="yolo_model" default="yolov8n-seg.pt"/>
@@ -48,8 +48,8 @@
     <param name="frame_id" value="world"/>
     <param name="occupancy_grid_resolution" value="$(arg occupancy_grid_resolution)"/>
     <param name="octomap_resolution" value="$(arg octomap_resolution)"/>
-    <param name="z_min" value="-0.1"/>
-    <param name="z_max" value="2.0"/>
+    <param name="z_min" value="-2.0"/>
+    <param name="z_max" value="3.0"/>
   </node>
   
   <!-- Semantic Mapper Node -->
