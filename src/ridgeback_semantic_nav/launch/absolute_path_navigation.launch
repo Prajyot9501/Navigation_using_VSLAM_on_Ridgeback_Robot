@@ -1,0 +1,132 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Use simulated time -->
+  <param name="/use_sim_time" value="false"/>
+  
+  <!-- Use scaled map file -->
+  <arg name="map_file" default="$(env HOME)/capstone_final/ridgeback_ws/src/orb_slam3_ros/maps/my_map_large.yaml"/>
+  <arg name="db_path" default="$(env HOME)/semantic_map.db"/>
+  
+  <!-- Print the absolute map path to verify it -->
+  <node name="map_path_echo" pkg="rostopic" type="rostopic" 
+        args="echo -n 1 /map_path" output="screen"/>
+  <node name="map_path_pub" pkg="rostopic" type="rostopic" 
+        args="pub /map_path std_msgs/String 'data: $(arg map_file)'" output="screen"/>
+  
+  <!-- Load the map using absolute path -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" respawn="true" output="screen"/>
+  
+  <!-- Include Ridgeback robot description -->
+  <include file="$(find ridgeback_description)/launch/description.launch"/>
+  
+  <!-- Critical: Set up proper TF tree with world as the root frame -->
+  <include file="$(find ridgeback_semantic_nav)/launch/ridgeback_tf.launch"/>
+  
+    <!-- Add fake velocity controller -->
+  <node pkg="ridgeback_semantic_nav" type="fake_velocity_controller.py" name="fake_velocity_controller" output="screen"/>
+
+  <!-- Joint state publisher for visualization -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  
+  <!-- Load the semantic database -->
+  <node name="semantic_mapper" pkg="semantic_mapping" type="semantic_mapper_node.py" output="screen">
+    <param name="db_path" value="$(arg db_path)"/>
+    <param name="confidence_threshold" value="0.7"/>
+    <param name="min_detections" value="3"/>
+    <param name="max_distance" value="0.5"/>
+    <param name="camera_frame" value="base_link"/>
+    <param name="world_frame" value="map"/>
+  </node>
+  
+  <!-- Move base with optimized configuration -->
+  <node pkg="move_base" type="move_base" respawn="true" name="move_base" output="screen">
+    <rosparam>
+      # Planner configuration
+      planner_frequency: 2.0
+      recovery_behavior_enabled: true
+      controller_frequency: 10.0
+      
+      # Global costmap - DISABLED all obstacles
+      global_costmap:
+        global_frame: map
+        robot_base_frame: base_link
+        update_frequency: 2.0
+        publish_frequency: 1.0
+        static_map: false  # Changed to false - don't use map data
+        rolling_window: true
+        width: 10.0
+        height: 10.0
+        resolution: 0.05
+        inflation_radius: 0.01  # Almost no inflation
+        transform_tolerance: 1.0
+        
+        plugins:  # Only use inflation (no static or obstacle layers)
+          - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+      
+      # Local costmap - DISABLED all obstacles
+      local_costmap:
+        global_frame: odom
+        robot_base_frame: base_link
+        update_frequency: 5.0
+        publish_frequency: 2.0
+        static_map: false
+        rolling_window: true
+        width: 5.0
+        height: 5.0
+        resolution: 0.05
+        inflation_radius: 0.01  # Almost no inflation
+        transform_tolerance: 1.0
+        
+        plugins:  # Only use inflation (no obstacle layer)
+          - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+        
+      # Tiny footprint
+      footprint: [[-0.1, -0.1], [-0.1, 0.1], [0.1, 0.1], [0.1, -0.1]]
+      
+      # TrajectoryPlannerROS optimized for open space
+      TrajectoryPlannerROS:
+        max_vel_x: 0.3
+        min_vel_x: 0.05
+        max_vel_theta: 0.8
+        min_in_place_vel_theta: 0.2
+        escape_vel: -0.1
+        acc_lim_theta: 2.0
+        acc_lim_x: 1.5
+        acc_lim_y: 1.5
+        holonomic_robot: true
+        yaw_goal_tolerance: 0.5  # Very lenient yaw tolerance 
+        xy_goal_tolerance: 0.3   # More lenient position tolerance
+        latch_xy_goal_tolerance: true
+        oscillation_reset_dist: 0.05
+        
+        # Explicitly set costmap weight low
+        pdist_scale: 0.1  # Low value = less focus on path distance
+        gdist_scale: 0.8  # High value = more focus on goal
+        occdist_scale: 0.01  # Very low = almost ignore obstacles
+      
+      # Recovery behaviors
+      recovery_behaviors:
+        - name: conservative_reset
+          type: clear_costmap_recovery/ClearCostmapRecovery
+        - name: rotate_recovery
+          type: rotate_recovery/RotateRecovery
+        - name: aggressive_reset
+          type: clear_costmap_recovery/ClearCostmapRecovery
+      
+      conservative_reset:
+        reset_distance: 0.2
+      aggressive_reset:
+        reset_distance: 0.0
+    </rosparam>
+  </node>
+  
+  <!-- Enhanced semantic navigator -->
+  <node name="semantic_navigator" pkg="ridgeback_semantic_nav" type="enhanced_semantic_navigator.py" output="screen">
+    <param name="world_frame" value="map"/>
+    <param name="min_confidence" value="0.6"/>
+    <param name="approach_distance" value="0.4"/>  <!-- Reduced approach distance -->
+  </node>
+  
+  <!-- RViz configuration using minimal settings -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find ridgeback_semantic_nav)/rviz/ridgeback_nav.rviz"/>
+</launch>

@@ -1,0 +1,9 @@
+free_thresh: 0.196
+image: /home/praj/capstone_final/ridgeback_ws/src/orb_slam3_ros/maps/my_map_scaled.pgm
+negate: 0
+occupied_thresh: 0.65
+origin:
+- -2.357996
+- -2.297154
+- 0.0
+resolution: 0.025

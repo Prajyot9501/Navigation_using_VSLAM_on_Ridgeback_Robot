@@ -1,28 +1,28 @@
 <?xml version="1.0"?>
 <launch>
-
+  <!-- Use simulated time from bag file -->
   <param name="/use_sim_time" value="true"/>
-  <!-- Define paths -->
+
+  <!-- Arguments -->
+  <arg name="bag_file" default=""/>
+  <arg name="db_path" default="$(env HOME)/semantic_map_new.db"/>
   <arg name="voc_file" default="$(find orb_slam3_ros)/vocabulary/ORBvoc.txt"/>
   <arg name="settings_file" default="$(find orb_slam3_ros)/config/D455/D455.yaml"/>
   <arg name="yolo_model" default="yolov8n-seg.pt"/>
-  <arg name="confidence_threshold" default="0.5"/>
+  <arg name="occupancy_grid_resolution" default="0.05"/>
+  <arg name="octomap_resolution" default="0.1"/>
   
   <!-- Define camera topics -->
   <arg name="rgb_topic" default="/device_0/sensor_1/Color_0/image/data"/>
   <arg name="depth_topic" default="/device_0/sensor_0/Depth_0/image/data"/>
-  
-  <!-- Map generation parameters -->
-  <arg name="occupancy_grid_resolution" default="0.05"/>  <!-- 5cm resolution -->
-  <arg name="octomap_resolution" default="0.1"/>         <!-- 10cm resolution -->
-  <arg name="z_min" default="-1.0"/>                     <!-- Floor threshold -->
-  <arg name="z_max" default="3.0"/>                      <!-- Maximum height -->
+  <arg name="camera_info_topic" default="/device_0/sensor_1/Color_0/info/camera_info"/>
   
   <!-- YOLOv8 Dynamic Object Detection Node -->
   <node name="yolov8_detector" pkg="yolov8_ros" type="yolov8_detector_node.py" output="screen">
     <param name="model_path" value="$(arg yolo_model)"/>
-    <param name="confidence_threshold" value="$(arg confidence_threshold)"/>
+    <param name="confidence_threshold" value="0.5"/>
     <remap from="/camera/rgb/image_raw" to="$(arg rgb_topic)"/>
+    <remap from="/camera/rgb/camera_info" to="$(arg camera_info_topic)"/>
   </node>
   
   <!-- ORB-SLAM3 RGBD Node with Dynamic Object Filtering -->
@@ -38,9 +38,9 @@
   <!-- Pointcloud Publisher Node -->
   <node name="slam_pointcloud_publisher" pkg="orb_slam3_ros" type="slam_pointcloud_publisher" output="screen">
     <param name="frame_id" value="world"/>
-    <param name="num_points" value="50000"/>   <!-- Increased for better map quality -->
-    <param name="update_rate" value="2.0"/>     <!-- Slower updates for more stability -->
-    <param name="pointcloud_radius" value="0.5"/> <!-- Smaller radius for more precise points -->
+    <param name="num_points" value="50000"/>
+    <param name="update_rate" value="2.0"/>
+    <param name="pointcloud_radius" value="0.5"/>
   </node>
   
   <!-- Pointcloud to Map Converter Node -->
@@ -48,9 +48,31 @@
     <param name="frame_id" value="world"/>
     <param name="occupancy_grid_resolution" value="$(arg occupancy_grid_resolution)"/>
     <param name="octomap_resolution" value="$(arg octomap_resolution)"/>
-    <param name="z_min" value="$(arg z_min)"/>
-    <param name="z_max" value="$(arg z_max)"/>
+    <param name="z_min" value="-2.0"/>
+    <param name="z_max" value="3.0"/>
   </node>
+  
+  <!-- Semantic Mapper Node -->
+  <node name="semantic_mapper" pkg="semantic_mapping" type="semantic_mapper_node.py" output="screen">
+    <param name="db_path" value="$(arg db_path)"/>
+    <param name="confidence_threshold" value="0.7"/>
+    <param name="min_detections" value="3"/>
+    <param name="max_distance" value="0.5"/>
+    <param name="camera_frame" value="ORB_SLAM3"/>
+    <param name="world_frame" value="world"/>
+    
+    <remap from="/camera/rgb/image_raw" to="$(arg rgb_topic)"/>
+    <remap from="/camera/depth_registered/image_raw" to="$(arg depth_topic)"/>
+    <remap from="/camera/rgb/camera_info" to="$(arg camera_info_topic)"/>
+  </node>
+  
+  <!-- Map saver node - will save the map when killed -->
+  <node pkg="map_server" type="map_saver" name="map_saver" 
+        args="-f $(find orb_slam3_ros)/maps/my_map" output="screen">
+  </node>
+  
+  <!-- Play the bagfile if provided -->
+  <node pkg="rosbag" type="play" name="rosbag_play" args="--clock $(arg bag_file)" if="$(eval arg('bag_file') != '')"/>
   
   <!-- RViz for visualization -->
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find orb_slam3_ros)/rviz/semantic_mapping.rviz" respawn="true"/>
