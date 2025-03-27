@@ -46,26 +46,26 @@ This project enables autonomous navigation for an indoor mobile robot, using adv
 
 ## 🛠️ Implementation Steps
 ### 1. Data Collection
-Recorded .bag files using RealSense D455 <br>
-Validated RGB and Depth streams via rosbag and Realsense SDK <br>
-![0C133560-8DC8-4F95-B1F6-039BB968B886_1_105_c](https://github.com/user-attachments/assets/c87fb34e-bc74-4d82-8aaf-463f712199f5)
+-Recorded .bag files using RealSense D455 <br>
+-Validated RGB and Depth streams via rosbag and Realsense SDK <br>
+<img src="https://github.com/user-attachments/assets/c87fb34e-bc74-4d82-8aaf-463f712199f5" width="300">
 
 ### 2. Visual SLAM with ORB-SLAM3
-Installed required dependencies: OpenCV 4.4, Pangolin, OpenGL <br>
-Ran ORB-SLAM3 with RGB-D configuration <br>
-Handled TF orientation and loop closure for accurate mapping
-![Screenshot from 2025-03-26 19-55-15](https://github.com/user-attachments/assets/5621f89e-2a8d-4642-ba7f-a83ab47fdb7a)
+-Installed required dependencies: OpenCV 4.4, Pangolin, OpenGL <br>
+-Ran ORB-SLAM3 with RGB-D configuration <br>
+-Handled TF orientation and loop closure for accurate mapping <br>
+<img src="https://github.com/user-attachments/assets/5621f89e-2a8d-4642-ba7f-a83ab47fdb7a" width="300">
 
 ### 3. Object Detection with YOLOv8
-Created a ROS wrapper for YOLOv8 integration <br>
-Stored object detections with depth info and avoided duplicates <br>
-Mapped 3D coordinates of identified objects
-![Screenshot from 2025-03-26 20-04-19](https://github.com/user-attachments/assets/abf9e630-e516-4bdf-97bc-8e5ed25a51c8)
+-Created a ROS wrapper for YOLOv8 integration <br>
+-Stored object detections with depth info and avoided duplicates <br>
+-Mapped 3D coordinates of identified objects<br>
+<img src="https://github.com/user-attachments/assets/abf9e630-e516-4bdf-97bc-8e5ed25a51c8" width="300">
 
 ### 4. Navigation and Control
-Spawned Ridgeback in RViz for simulation <br>
-Developed custom control node <br>
-Integrated map and object locations for path planning
+-Spawned Ridgeback in RViz for simulation <br>
+-Developed custom control node <br>
+-Integrated map and object locations for path planning
 ![nav](https://github.com/user-attachments/assets/4277e194-56ec-4d80-83ed-95ce21b7d2cf)
 
 
