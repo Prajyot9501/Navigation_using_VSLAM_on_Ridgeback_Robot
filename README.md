@@ -4,7 +4,7 @@
 ## :dart: Mission
 To get the Clearpath Robotics Ridgeback to navigate on its own with a map and stored object locations as per users’ instructions 
 
-This project enables autonomous navigation for an indoor mobile robot, using advanced computer vision and mapping techniques. The robot—powered by Clearpath Robotics’ Ridgeback platform is equipped with Intel RealSense D455 and utilizes ORB-SLAM3, YOLOv8, and Octomap to map, detect, and navigate environments.
+This project enables autonomous navigation for an indoor mobile robot, using advanced computer vision and mapping techniques. The robot, powered by Clearpath Robotics’ Ridgeback platform is equipped with Intel RealSense D455 and utilizes ORB-SLAM3, YOLOv8, and Octomap to map, detect, and navigate environments.
 
 **Our Hero:** Ridgeback, the omnidirectional wonder-robot <br>
 **Sidekick:** Intel RealSense D455 camera (Ridgeback's eyes) <br>
@@ -44,7 +44,7 @@ This project enables autonomous navigation for an indoor mobile robot, using adv
 - Python 3.8+
 - C++11 or C++0x Compiler
 
-## 🛠️ Implementation Steps
+## Implementation Steps
 ### 1. Data Collection
 -Recorded .bag files using RealSense D455 <br>
 -Validated RGB and Depth streams via rosbag and Realsense SDK <br>
@@ -103,8 +103,19 @@ roslaunch ridgeback_semantic_nav absolute_path_navigation.launch
 ```
 rosrun ridgeback_semantic_nav goto_object.py {object_name}
 ```
+##  Contributing
+Contributions to improve the project are welcome! Please feel free to submit a Pull Request.
 
-## 🧑‍🔬 Developed By
+##  License
+This project is licensed under the MIT License 
+
+##  Acknowledgments
+* Clearpath Robotics for Ridgeback Robot
+*  The ROS community for their invaluable tools and resources
+*  UZ-SLAMLab for ORB_SLAM3
+*  Ultralytics for YOLOv8
+  
+## Developed By
 Prajyot Patil <br>
 Mentored by Dr. Maria Kyrarini <br>
 Santa Clara University
