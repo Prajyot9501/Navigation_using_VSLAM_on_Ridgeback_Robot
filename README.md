@@ -54,16 +54,20 @@ Validated RGB and Depth streams via rosbag and Realsense SDK <br>
 Installed required dependencies: OpenCV 4.4, Pangolin, OpenGL <br>
 Ran ORB-SLAM3 with RGB-D configuration <br>
 Handled TF orientation and loop closure for accurate mapping
+![Screenshot from 2025-03-26 19-55-15](https://github.com/user-attachments/assets/5621f89e-2a8d-4642-ba7f-a83ab47fdb7a)
 
 ### 3. Object Detection with YOLOv8
 Created a ROS wrapper for YOLOv8 integration <br>
 Stored object detections with depth info and avoided duplicates <br>
 Mapped 3D coordinates of identified objects
+![Screenshot from 2025-03-26 20-04-19](https://github.com/user-attachments/assets/abf9e630-e516-4bdf-97bc-8e5ed25a51c8)
 
 ### 4. Navigation and Control
 Spawned Ridgeback in RViz for simulation <br>
 Developed custom control node <br>
 Integrated map and object locations for path planning
+![nav](https://github.com/user-attachments/assets/4277e194-56ec-4d80-83ed-95ce21b7d2cf)
+
 
 ## Setup Instructions
 #### Clone the repository
