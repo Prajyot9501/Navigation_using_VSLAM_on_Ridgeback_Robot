@@ -48,6 +48,7 @@ This project enables autonomous navigation for an indoor mobile robot, using adv
 ### 1. Data Collection
 Recorded .bag files using RealSense D455 <br>
 Validated RGB and Depth streams via rosbag and Realsense SDK <br>
+![0C133560-8DC8-4F95-B1F6-039BB968B886_1_105_c](https://github.com/user-attachments/assets/c87fb34e-bc74-4d82-8aaf-463f712199f5)
 
 ### 2. Visual SLAM with ORB-SLAM3
 Installed required dependencies: OpenCV 4.4, Pangolin, OpenGL <br>
