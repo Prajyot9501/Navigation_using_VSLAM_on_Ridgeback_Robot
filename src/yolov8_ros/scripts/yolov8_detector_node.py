@@ -19,7 +19,11 @@ class YOLOv8Detector:
         # Parameters
         self.model_path = rospy.get_param('~model_path', 'yolov8n-seg.pt')
         self.confidence_threshold = rospy.get_param('~confidence_threshold', 0.5)
-        self.dynamic_classes = rospy.get_param('~dynamic_classes', [0, 1, 2, 3, 5, 7])  # COCO classes for person, bicycle, car, motorcycle, bus, truck
+        
+        # COCO classes for dynamic objects excluding person (class 0)
+        # Original: [0, 1, 2, 3, 5, 7] for person, bicycle, car, motorcycle, bus, truck
+        # Modified: [1, 2, 3, 5, 7] for bicycle, car, motorcycle, bus, truck (excluding person)
+        self.dynamic_classes = rospy.get_param('~dynamic_classes', [1, 2, 3, 5, 7])
         
         # Load YOLOv8 model
         self.model = YOLO(self.model_path, verbose=False)
@@ -40,6 +44,7 @@ class YOLOv8Detector:
         self.image_sub = rospy.Subscriber('/camera/rgb/image_raw', Image, self.image_callback)
         
         rospy.loginfo("YOLOv8 detector initialized with model: %s", self.model_path)
+        rospy.loginfo("Dynamic classes (excluding person): %s", str(self.dynamic_classes))
     
     def camera_info_callback(self, msg):
         self.camera_info = msg
@@ -90,10 +95,10 @@ class YOLOv8Detector:
                     # Add to detections message
                     detection_msg.detections.append(det)
                     
-                    # Process segmentation masks if available
-                    if masks is not None and i < len(masks):
+                    # Process segmentation masks if available - SKIP FOR PERSON CLASS (0)
+                    if masks is not None and i < len(masks) and cls_id != 0:  # Skip mask processing for person class
                         mask = masks[i]
-                        # Check if object is dynamic
+                        # Check if object is dynamic (and not a person)
                         if cls_id in self.dynamic_classes:
                             # Convert mask to numpy array and resize to image dimensions
                             mask_array = mask.data.cpu().numpy().squeeze()
@@ -110,8 +115,8 @@ class YOLOv8Detector:
                             color = (0, 0, 255)  # Red for dynamic objects
                             vis_image = self.draw_mask_overlay(vis_image, mask_binary, color, 0.5)
                     
-                    # Draw bounding box and label (for all objects, not just dynamic)
-                    is_dynamic = cls_id in self.dynamic_classes
+                    # Draw bounding box and label (for all objects, including person)
+                    is_dynamic = cls_id in self.dynamic_classes or cls_id == 0  # Consider person as dynamic for visualization
                     color = (0, 0, 255) if is_dynamic else (0, 255, 0)  # Red for dynamic, green for static
                     
                     cv2.rectangle(vis_image, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)

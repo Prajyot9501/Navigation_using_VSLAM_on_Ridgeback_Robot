@@ -10,7 +10,7 @@
   <arg name="settings_file" default="$(find orb_slam3_ros)/config/D455/D455.yaml"/>
   <arg name="yolo_model" default="yolov8n-seg.pt"/>
   <arg name="occupancy_grid_resolution" default="0.05"/>
-  <arg name="octomap_resolution" default="0.1"/>
+  <arg name="octomap_resolution" default="0.01"/>
   
   <!-- Define camera topics -->
   <arg name="rgb_topic" default="/device_0/sensor_1/Color_0/image/data"/>
@@ -70,10 +70,13 @@
   <node pkg="map_server" type="map_saver" name="map_saver" 
         args="-f $(find orb_slam3_ros)/maps/my_map" output="screen">
   </node>
-  
+
+  <!-- Define rate parameter with default -->
+  <arg name="play_rate" default="0.5"/>
+
   <!-- Play the bagfile if provided -->
-  <node pkg="rosbag" type="play" name="rosbag_play" args="--clock $(arg bag_file)" if="$(eval arg('bag_file') != '')"/>
-  
+  <node pkg="rosbag" type="play" name="rosbag_play" args="--clock --rate=$(arg play_rate) $(arg bag_file)" if="$(eval arg('bag_file') != '')"/>
+    
   <!-- RViz for visualization -->
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find orb_slam3_ros)/rviz/semantic_mapping.rviz" respawn="true"/>
 </launch>

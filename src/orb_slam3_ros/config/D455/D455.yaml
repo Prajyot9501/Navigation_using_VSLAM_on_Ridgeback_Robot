@@ -33,7 +33,7 @@ Camera.RGB: 1
 # WorldRPY.pitch: 0.0
 # WorldRPY.yaw: 1.57079632679
 
-WorldRPY.roll: 1.57
+WorldRPY.roll: 0.0
 WorldRPY.pitch: 0.0
 WorldRPY.yaw: 0.0
 
@@ -61,8 +61,18 @@ ORBextractor.nLevels: 8
 # Image is divided in a grid. At each cell FAST are extracted imposing a minimum response.
 # Firstly we impose iniThFAST. If no corners are detected we impose a lower value minThFAST
 # You can lower these values if your images have low contrast
-ORBextractor.iniThFAST: 20
-ORBextractor.minThFAST: 7
+ORBextractor.iniThFAST: 15
+ORBextractor.minThFAST: 5
+
+# Add robustness parameters
+SLAM.ThDepth: 40.0            # Depth threshold
+SLAM.MaxFrames: 0             # 0 = no limit
+
+# Add these parameters to make tracking more robust
+SLAM.localizationMode: 0      # 0 = SLAM mode (mapping), 1 = localization only
+SLAM.insertKFsWhenLost: 1     # Try to insert keyframes when tracking is poor
+SLAM.minFrames: 0             # Process all frames
+SLAM.maxFrames: 0             # Process all frames
 
 #--------------------------------------------------------------------------------------------
 # Viewer Parameters
