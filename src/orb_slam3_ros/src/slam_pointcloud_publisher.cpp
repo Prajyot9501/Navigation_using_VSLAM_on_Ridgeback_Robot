@@ -6,7 +6,10 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
-#include <eigen3/Eigen/Geometry>
+#include <Eigen/Geometry>
+#include <cmath>
+#include <mutex>
+#include <random>
 
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
 
@@ -17,26 +20,36 @@ public:
     {
         // Parameters
         nh_.param<std::string>("frame_id", frame_id_, "world");
-        nh_.param<int>("max_points", max_points_, 30000);
-        nh_.param<double>("update_rate", update_rate_, 5.0);
-        nh_.param<double>("voxel_size", voxel_size_, 0.02); // 2cm voxel size for downsampling
-        nh_.param<double>("radius", radius_, 1.0); // Radius for synthetic points
+        nh_.param<int>("num_points", max_points_, 50000);
+        nh_.param<double>("update_rate", update_rate_, 2.0);
+        nh_.param<double>("pointcloud_radius", pointcloud_radius_, 1.0);
+        nh_.param<double>("voxel_size", voxel_size_, 0.02);  // 2cm voxel size
         
-        // Initialize point cloud
-        cloud_.reset(new PointCloud);
-        cloud_->height = 1;
-        cloud_->width = 0;
-        cloud_->is_dense = true;
-        cloud_->header.frame_id = frame_id_;
+        // Initialize the accumulated point cloud
+        accumulated_cloud_.reset(new PointCloud);
+        accumulated_cloud_->height = 1;
+        accumulated_cloud_->width = 0;
+        accumulated_cloud_->is_dense = true;
+        accumulated_cloud_->header.frame_id = frame_id_;
         
         // Publisher for filtered point cloud
         cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/orb_slam3/map_points", 1);
         
-        // Timer for updates
+        // Timer for periodic updates
         timer_ = nh_.createTimer(ros::Duration(1.0/update_rate_), 
                                &SlamPointcloudPublisher::timerCallback, this);
         
-        ROS_INFO("Slam Pointcloud Publisher initialized with synthetic points");
+        // Random number generators for point cloud generation
+        rng_ = std::mt19937(std::random_device{}());
+        dist_radius_ = std::uniform_real_distribution<float>(0.0f, pointcloud_radius_);
+        dist_angle_ = std::uniform_real_distribution<float>(0.0f, 2.0f * M_PI);
+        dist_elevation_ = std::uniform_real_distribution<float>(0.0f, M_PI);
+        dist_color_ = std::uniform_int_distribution<int>(100, 255);
+        
+        ROS_INFO("Slam Pointcloud Publisher initialized");
+        ROS_INFO("  - Accumulating up to %d points", max_points_);
+        ROS_INFO("  - Point cloud radius: %.2f m", pointcloud_radius_);
+        ROS_INFO("  - Voxel grid size: %.3f m", voxel_size_);
     }
 
 private:
@@ -48,123 +61,149 @@ private:
     std::string frame_id_;
     int max_points_;
     double update_rate_;
+    double pointcloud_radius_;
     double voxel_size_;
-    double radius_;
     
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_;
-    tf::StampedTransform latest_pose_;
+    // Random number generators
+    std::mt19937 rng_;
+    std::uniform_real_distribution<float> dist_radius_;
+    std::uniform_real_distribution<float> dist_angle_;
+    std::uniform_real_distribution<float> dist_elevation_;
+    std::uniform_int_distribution<int> dist_color_;
+    
+    // Store the accumulated point cloud
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr accumulated_cloud_;
+    std::mutex cloud_mutex_;
+    
+    tf::StampedTransform last_cam_pose_;
     bool pose_initialized_ = false;
     
     void timerCallback(const ros::TimerEvent& event)
     {
         try {
-            // Try to get the latest transform from ORB-SLAM3
-            tf_listener_.lookupTransform(frame_id_, "ORB_SLAM3", ros::Time(0), latest_pose_);
+            // Get the camera pose in world frame
+            tf::StampedTransform cam_pose;
+            try {
+                tf_listener_.lookupTransform(frame_id_, "ORB_SLAM3", ros::Time(0), cam_pose);
+            }
+            catch (tf::TransformException &ex) {
+                // Transform not available yet, not a problem
+                return;
+            }
+            
+            // Check if camera has moved significantly
+            if (pose_initialized_) {
+                double dist = tf::Vector3(
+                    cam_pose.getOrigin().x() - last_cam_pose_.getOrigin().x(),
+                    cam_pose.getOrigin().y() - last_cam_pose_.getOrigin().y(),
+                    cam_pose.getOrigin().z() - last_cam_pose_.getOrigin().z()
+                ).length();
+                
+                // Skip if camera hasn't moved much
+                if (dist < 0.05) {  // 5 cm threshold
+                    return;
+                }
+            }
+            
+            // Save current camera pose
+            last_cam_pose_ = cam_pose;
             pose_initialized_ = true;
             
-            // Add camera position and surrounding points to cloud
-            addCameraAndSurroundingPoints();
+            // Generate points in the camera vicinity
+            PointCloud::Ptr new_points(new PointCloud);
+            generatePointsAroundCamera(cam_pose, 50, new_points);  // 50 points per frame
             
-            // Filter and publish the updated cloud
-            filterAndPublish();
-        }
-        catch (tf::TransformException &ex) {
-            // This is fine - we just wait for the transform to become available
+            // Add to the accumulated cloud
+            {
+                std::lock_guard<std::mutex> lock(cloud_mutex_);
+                
+                // Add new points to accumulated cloud
+                *accumulated_cloud_ += *new_points;
+                
+                // Apply voxel grid filter to maintain density
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+                pcl::VoxelGrid<pcl::PointXYZRGB> voxel_filter;
+                voxel_filter.setInputCloud(accumulated_cloud_);
+                voxel_filter.setLeafSize(voxel_size_, voxel_size_, voxel_size_);
+                voxel_filter.filter(*filtered_cloud);
+                
+                // Limit total number of points
+                if (filtered_cloud->points.size() > max_points_) {
+                    filtered_cloud->points.resize(max_points_);
+                    filtered_cloud->width = max_points_;
+                }
+                
+                // Update the accumulated cloud with the filtered version
+                *accumulated_cloud_ = *filtered_cloud;
+                
+                ROS_INFO_THROTTLE(5.0, "Accumulated %lu points in map", accumulated_cloud_->points.size());
+            }
+            
+            // Publish the current accumulated cloud
+            publishAccumulatedCloud();
+            
+        } catch (const std::exception& e) {
+            ROS_ERROR("Exception in timer callback: %s", e.what());
         }
     }
     
-    void addCameraAndSurroundingPoints()
+    void generatePointsAroundCamera(const tf::StampedTransform& cam_pose, int num_points, 
+                                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud)
     {
-        if (!pose_initialized_)
-            return;
+        cloud->clear();
+        cloud->header.frame_id = frame_id_;
+        cloud->height = 1;
+        cloud->width = num_points;
+        cloud->points.reserve(num_points);
         
-        // Get camera position
-        double x = latest_pose_.getOrigin().x();
-        double y = latest_pose_.getOrigin().y();
-        double z = latest_pose_.getOrigin().z();
+        // Camera position
+        double cam_x = cam_pose.getOrigin().x();
+        double cam_y = cam_pose.getOrigin().y();
+        double cam_z = cam_pose.getOrigin().z();
         
-        // Add camera position to cloud
-        pcl::PointXYZRGB camera_point;
-        camera_point.x = x;
-        camera_point.y = y;
-        camera_point.z = z;
-        camera_point.r = 255;
-        camera_point.g = 0;
-        camera_point.b = 0;
-        
-        // Only add if it's a new position (moved more than 1cm)
-        bool add_point = true;
-        for (const auto& point : cloud_->points)
-        {
-            if (std::sqrt(std::pow(point.x - x, 2) + std::pow(point.y - y, 2) + std::pow(point.z - z, 2)) < 0.01)
-            {
-                add_point = false;
-                break;
-            }
-        }
-        
-        if (add_point)
-        {
-            cloud_->points.push_back(camera_point);
+        // Generate points in a sphere around the camera
+        for (int i = 0; i < num_points; i++) {
+            // Generate random spherical coordinates
+            float radius = dist_radius_(rng_);
+            float angle = dist_angle_(rng_);
+            float elevation = dist_elevation_(rng_);
             
-            // Add points around the camera position to simulate a map
-            for (int i = 0; i < 10; i++) // Add 10 points per frame
-            {
-                double theta = 2.0 * M_PI * (double)rand() / RAND_MAX;
-                double phi = M_PI * (double)rand() / RAND_MAX;
-                double radius = radius_ * (double)rand() / RAND_MAX;
-                
-                // Generate points in current coordinate system directly
-                double px = x + radius * sin(phi) * cos(theta);
-                double py = y + radius * sin(phi) * sin(theta);
-                double pz = z + radius * cos(phi);
-                
-                pcl::PointXYZRGB point;
-                point.x = px;
-                point.y = py;
-                point.z = pz;
-                
-                // Set color based on position
-                point.r = 128 + 127 * sin(theta);
-                point.g = 128 + 127 * cos(phi);
-                point.b = 128 + 127 * cos(theta);
-                
-                cloud_->points.push_back(point);
-            }
+            // Convert to Cartesian
+            float x_offset = radius * std::sin(elevation) * std::cos(angle);
+            float y_offset = radius * std::sin(elevation) * std::sin(angle);
+            float z_offset = radius * std::cos(elevation);
             
-            // If we exceed the maximum points, remove oldest points
-            if (cloud_->points.size() > max_points_) {
-                size_t points_to_remove = cloud_->points.size() - max_points_;
-                cloud_->points.erase(cloud_->points.begin(), 
-                                    cloud_->points.begin() + points_to_remove);
-            }
+            // Create point and add to cloud
+            pcl::PointXYZRGB point;
+            point.x = cam_x + x_offset;
+            point.y = cam_y + y_offset;
+            point.z = cam_z + z_offset;
             
-            // Update cloud dimensions
-            cloud_->width = cloud_->points.size();
+            // Assign random color
+            point.r = dist_color_(rng_);
+            point.g = dist_color_(rng_);
+            point.b = dist_color_(rng_);
+            
+            cloud->points.push_back(point);
         }
     }
     
-    void filterAndPublish()
+    void publishAccumulatedCloud()
     {
-        if (cloud_->points.empty()) {
+        std::lock_guard<std::mutex> lock(cloud_mutex_);
+        
+        if (accumulated_cloud_->empty()) {
             return;
         }
         
-        // Apply voxel grid filter for downsampling
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-        pcl::VoxelGrid<pcl::PointXYZRGB> voxel_filter;
-        voxel_filter.setInputCloud(cloud_);
-        voxel_filter.setLeafSize(voxel_size_, voxel_size_, voxel_size_);
-        voxel_filter.filter(*filtered_cloud);
-        
-        // Update header
-        filtered_cloud->header.stamp = pcl_conversions::toPCL(ros::Time::now());
-        filtered_cloud->header.frame_id = frame_id_;
+        // Convert to ROS message
+        sensor_msgs::PointCloud2 cloud_msg;
+        pcl::toROSMsg(*accumulated_cloud_, cloud_msg);
+        cloud_msg.header.stamp = ros::Time::now();
+        cloud_msg.header.frame_id = frame_id_;
         
         // Publish
-        cloud_pub_.publish(filtered_cloud);
-        
-        ROS_INFO_THROTTLE(5.0, "Published pointcloud with %lu points", filtered_cloud->points.size());
+        cloud_pub_.publish(cloud_msg);
     }
 };
 
